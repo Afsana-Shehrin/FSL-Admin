@@ -24,6 +24,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 export default function PlayersPage() {
   const [playersList, setPlayersList] = useState<Player[]>(players)
   const [searchQuery, setSearchQuery] = useState("")
+  const [selectedSport, setSelectedSport] = useState<string>("all")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null)
   const [formData, setFormData] = useState({
@@ -37,11 +38,15 @@ export default function PlayersPage() {
     photo: "",
   })
 
-  const filteredPlayers = playersList.filter(
-    (player) =>
+  const filteredPlayers = playersList.filter((player) => {
+    const matchesSearch =
       player.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      player.position.toLowerCase().includes(searchQuery.toLowerCase()),
-  )
+      player.position.toLowerCase().includes(searchQuery.toLowerCase())
+
+    const matchesSport = selectedSport === "all" || player.sportId === selectedSport
+
+    return matchesSearch && matchesSport
+  })
 
   const handleEdit = (player: Player) => {
     setEditingPlayer(player)
@@ -157,11 +162,13 @@ export default function PlayersPage() {
                     <SelectValue placeholder="Select sport" />
                   </SelectTrigger>
                   <SelectContent>
-                    {sports.map((sport) => (
-                      <SelectItem key={sport.id} value={sport.id}>
-                        {sport.icon} {sport.name}
-                      </SelectItem>
-                    ))}
+                    {sports
+                      .filter((sport) => sport.name === "Football" || sport.name === "Cricket")
+                      .map((sport) => (
+                        <SelectItem key={sport.id} value={sport.id}>
+                          {sport.icon} {sport.name}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -249,6 +256,29 @@ export default function PlayersPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
+          </div>
+          <div className="flex gap-2 mt-4">
+            <Button
+              variant={selectedSport === "all" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedSport("all")}
+            >
+              All Sports
+            </Button>
+            <Button
+              variant={selectedSport === "1" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedSport("1")}
+            >
+              ⚽ Football
+            </Button>
+            <Button
+              variant={selectedSport === "2" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedSport("2")}
+            >
+              🏏 Cricket
+            </Button>
           </div>
         </CardHeader>
         <CardContent>

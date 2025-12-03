@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { LayoutDashboard, Trophy, Users, Calendar, Shield, FileText, Settings } from "lucide-react"
+import { LayoutDashboard, Trophy, Users, Calendar, Shield, FileText, Settings ,User,ClipboardList} from "lucide-react"
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
@@ -12,7 +12,9 @@ const navItems = [
   { href: "/admin/teams", label: "Teams", icon: Users },
   { href: "/admin/players", label: "Players", icon: Users },
   { href: "/admin/fixtures", label: "Fixtures", icon: Calendar },
+  { href: "/admin/results", label: "Results Board", icon: ClipboardList },
   { href: "/admin/rules", label: "Rules", icon: FileText },
+  { href: "/admin/users",label: "Users",icon: User},
   { href: "/admin/logs", label: "Activity Logs", icon: FileText },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ]

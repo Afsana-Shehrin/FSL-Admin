@@ -61,6 +61,17 @@ export interface Player {
   stats: Record<string, number>
 }
 
+export type UserStatus = "active" | "blocked" | "inactive"
+export type User = {
+  id: string
+  name: string
+  email: string
+  status: UserStatus
+  teams: number
+  createdAt: string
+  lastLogin: string
+}
+
 export interface Fixture {
   id: string
   gameweekId: string
@@ -165,6 +176,14 @@ export const seasons: Season[] = [
     endDate: "2024-05-26",
     isActive: false,
   },
+  {
+    id: "3",
+    leagueId: "2",
+    name: "IPL 2025",
+    startDate: "2025-03-20",
+    endDate: "2025-05-30",
+    isActive: true,
+  },
 ]
 
 export const gameweeks: Gameweek[] = [
@@ -201,6 +220,39 @@ export const gameweeks: Gameweek[] = [
     status: "upcoming",
     isLocked: false,
   },
+  {
+    id: "4",
+    seasonId: "3",
+    name: "Match Week 1",
+    number: 1,
+    startDate: "2025-03-20",
+    endDate: "2025-03-23",
+    deadline: "2025-03-20T14:00:00Z",
+    status: "completed",
+    isLocked: true,
+  },
+  {
+    id: "5",
+    seasonId: "3",
+    name: "Match Week 2",
+    number: 2,
+    startDate: "2025-03-24",
+    endDate: "2025-03-27",
+    deadline: "2025-03-24T14:00:00Z",
+    status: "live",
+    isLocked: false,
+  },
+  {
+    id: "6",
+    seasonId: "3",
+    name: "Match Week 3",
+    number: 3,
+    startDate: "2025-03-28",
+    endDate: "2025-03-31",
+    deadline: "2025-03-28T14:00:00Z",
+    status: "upcoming",
+    isLocked: false,
+  },
 ]
 
 export const teams: Team[] = [
@@ -232,6 +284,36 @@ export const teams: Team[] = [
     logo: "/mumbai-indians-logo.png",
     primaryColor: "#004BA0",
     secondaryColor: "#FFD700",
+    isActive: true,
+  },
+  {
+    id: "4",
+    name: "Chennai Super Kings",
+    code: "CSK",
+    sportId: "2",
+    logo: "/csk-logo.png",
+    primaryColor: "#FDB913",
+    secondaryColor: "#0081C8",
+    isActive: true,
+  },
+  {
+    id: "5",
+    name: "Royal Challengers Bangalore",
+    code: "RCB",
+    sportId: "2",
+    logo: "/rcb-logo.png",
+    primaryColor: "#EC1C24",
+    secondaryColor: "#000000",
+    isActive: true,
+  },
+  {
+    id: "6",
+    name: "Kolkata Knight Riders",
+    code: "KKR",
+    sportId: "2",
+    logo: "/kkr-logo.png",
+    primaryColor: "#3A225D",
+    secondaryColor: "#B3A123",
     isActive: true,
   },
 ]
@@ -273,11 +355,118 @@ export const players: Player[] = [
     photo: "/player-portrait.jpg",
     stats: { runs: 456, wickets: 0, catches: 5 },
   },
+  {
+    id: "4",
+    name: "MS Dhoni",
+    teamId: "4",
+    sportId: "2",
+    position: "Wicket-keeper",
+    price: 10.5,
+    availability: "available",
+    news: "",
+    photo: "/player-portrait.jpg",
+    stats: { runs: 389, wickets: 0, catches: 12, stumpings: 3 },
+  },
+  {
+    id: "5",
+    name: "Virat Kohli",
+    teamId: "5",
+    sportId: "2",
+    position: "Batsman",
+    price: 12.0,
+    availability: "available",
+    news: "",
+    photo: "/player-portrait.jpg",
+    stats: { runs: 543, wickets: 0, catches: 7 },
+  },
+  {
+    id: "6",
+    name: "Jasprit Bumrah",
+    teamId: "3",
+    sportId: "2",
+    position: "Bowler",
+    price: 9.5,
+    availability: "available",
+    news: "",
+    photo: "/player-portrait.jpg",
+    stats: { runs: 23, wickets: 18, catches: 3 },
+  },
+  {
+    id: "7",
+    name: "Andre Russell",
+    teamId: "6",
+    sportId: "2",
+    position: "All-rounder",
+    price: 10.0,
+    availability: "available",
+    news: "",
+    photo: "/player-portrait.jpg",
+    stats: { runs: 312, wickets: 11, catches: 8 },
+  },
+]
+
+export const users: User[] = [
+  {
+    id: "1",
+    name: "John Doe",
+    email: "john.doe@example.com",
+    status: "active",
+    teams: 3,
+    createdAt: "2024-01-15",
+    lastLogin: "2024-03-10",
+  },
+  {
+    id: "2",
+    name: "Jane Smith",
+    email: "jane.smith@example.com",
+    status: "active",
+    teams: 2,
+    createdAt: "2024-01-20",
+    lastLogin: "2024-03-09",
+  },
+  {
+    id: "3",
+    name: "Bob Johnson",
+    email: "bob.johnson@example.com",
+    status: "blocked",
+    teams: 1,
+    createdAt: "2024-02-01",
+    lastLogin: "2024-02-28",
+  },
+  {
+    id: "4",
+    name: "Alice Brown",
+    email: "alice.brown@example.com",
+    status: "active",
+    teams: 4,
+    createdAt: "2024-02-10",
+    lastLogin: "2024-03-10",
+  },
+  {
+    id: "5",
+    name: "Charlie Wilson",
+    email: "charlie.wilson@example.com",
+    status: "inactive",
+    teams: 0,
+    createdAt: "2024-02-15",
+    lastLogin: "2024-02-20",
+  },
 ]
 
 export const fixtures: Fixture[] = [
   {
     id: "1",
+    gameweekId: "1",
+    homeTeamId: "1",
+    awayTeamId: "2",
+    kickoffTime: "2024-08-17T15:00:00Z",
+    venue: "Old Trafford",
+    status: "completed",
+    homeScore: 2,
+    awayScore: 1,
+  },
+  {
+    id: "2",
     gameweekId: "2",
     homeTeamId: "1",
     awayTeamId: "2",
@@ -288,12 +477,85 @@ export const fixtures: Fixture[] = [
     awayScore: 1,
   },
   {
-    id: "2",
+    id: "3",
     gameweekId: "3",
     homeTeamId: "2",
     awayTeamId: "1",
     kickoffTime: "2024-09-01T12:30:00Z",
     venue: "Anfield",
+    status: "scheduled",
+  },
+  {
+    id: "4",
+    gameweekId: "4",
+    homeTeamId: "3",
+    awayTeamId: "4",
+    kickoffTime: "2025-03-20T19:30:00Z",
+    venue: "Wankhede Stadium",
+    status: "completed",
+    homeScore: 185,
+    awayScore: 142,
+  },
+  {
+    id: "5",
+    gameweekId: "4",
+    homeTeamId: "5",
+    awayTeamId: "6",
+    kickoffTime: "2025-03-21T15:30:00Z",
+    venue: "M. Chinnaswamy Stadium",
+    status: "completed",
+    homeScore: 198,
+    awayScore: 176,
+  },
+  {
+    id: "6",
+    gameweekId: "4",
+    homeTeamId: "4",
+    awayTeamId: "3",
+    kickoffTime: "2025-03-22T19:30:00Z",
+    venue: "MA Chidambaram Stadium",
+    status: "completed",
+    homeScore: 167,
+    awayScore: 171,
+  },
+  {
+    id: "7",
+    gameweekId: "5",
+    homeTeamId: "3",
+    awayTeamId: "4",
+    kickoffTime: "2025-03-24T19:30:00Z",
+    venue: "Wankhede Stadium",
+    status: "live",
+    homeScore: 185,
+    awayScore: 142,
+  },
+  {
+    id: "8",
+    gameweekId: "5",
+    homeTeamId: "5",
+    awayTeamId: "6",
+    kickoffTime: "2025-03-25T15:30:00Z",
+    venue: "M. Chinnaswamy Stadium",
+    status: "live",
+    homeScore: 198,
+    awayScore: 176,
+  },
+  {
+    id: "9",
+    gameweekId: "6",
+    homeTeamId: "4",
+    awayTeamId: "6",
+    kickoffTime: "2025-03-28T19:30:00Z",
+    venue: "MA Chidambaram Stadium",
+    status: "scheduled",
+  },
+  {
+    id: "10",
+    gameweekId: "6",
+    homeTeamId: "3",
+    awayTeamId: "5",
+    kickoffTime: "2025-03-29T15:30:00Z",
+    venue: "Wankhede Stadium",
     status: "scheduled",
   },
 ]

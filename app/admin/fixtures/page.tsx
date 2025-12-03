@@ -1,13 +1,14 @@
 "use client"
 
+import { Label } from "@/components/ui/label"
+
 import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Edit, Trash2, Search, CalendarIcon, Lock } from "lucide-react"
-import { fixtures, gameweeks, teams, seasons, type Fixture, type Gameweek } from "@/lib/dummy-data"
+import { fixtures, gameweeks, teams, seasons, leagues, sports, type Fixture, type Gameweek } from "@/lib/dummy-data"
 import {
   Dialog,
   DialogContent,
@@ -25,11 +26,13 @@ export default function FixturesPage() {
   const [fixturesList, setFixturesList] = useState<Fixture[]>(fixtures)
   const [gameweeksList, setGameweeksList] = useState<Gameweek[]>(gameweeks)
   const [searchQuery, setSearchQuery] = useState("")
+  const [selectedSport, setSelectedSport] = useState<string>("all")
   const [isFixtureDialogOpen, setIsFixtureDialogOpen] = useState(false)
   const [isGameweekDialogOpen, setIsGameweekDialogOpen] = useState(false)
   const [editingFixture, setEditingFixture] = useState<Fixture | null>(null)
   const [editingGameweek, setEditingGameweek] = useState<Gameweek | null>(null)
   const [selectedGameweek, setSelectedGameweek] = useState<string | null>(null)
+  const [gameweekSportFilter, setGameweekSportFilter] = useState<string>("all")
 
   const [fixtureFormData, setFixtureFormData] = useState({
     gameweekId: "",
@@ -139,9 +142,29 @@ export default function FixturesPage() {
     setIsGameweekDialogOpen(false)
   }
 
-  const getTeamName = (teamId: string) => {
-    return teams.find((t) => t.id === teamId)?.name || "Unknown"
+  const getTeamName = (teamId: string) => teams.find((t) => t.id === teamId)?.name || "Unknown Team"
+
+  const getTeamSportId = (teamId: string) => teams.find((t) => t.id === teamId)?.sportId || ""
+
+  const getGameweekSportId = (gameweekId: string) => {
+    const gameweek = gameweeks.find((g) => g.id === gameweekId)
+    if (!gameweek) return ""
+    const season = seasons.find((s) => s.id === gameweek.seasonId)
+    if (!season) return ""
+    const league = leagues.find((l) => l.id === season.leagueId)
+    return league?.sportId || ""
   }
+
+  const filteredFixtures = fixturesList.filter((fixture) => {
+    const matchesSearch =
+      getTeamName(fixture.homeTeamId).toLowerCase().includes(searchQuery.toLowerCase()) ||
+      getTeamName(fixture.awayTeamId).toLowerCase().includes(searchQuery.toLowerCase())
+
+    const teamSportId = getTeamSportId(fixture.homeTeamId)
+    const matchesSport = selectedSport === "all" || teamSportId === selectedSport
+
+    return matchesSearch && matchesSport
+  })
 
   const getGameweekName = (gameweekId: string) => {
     return gameweeksList.find((g) => g.id === gameweekId)?.name || "Unknown"
@@ -340,6 +363,38 @@ export default function FixturesPage() {
           <Card>
             <CardHeader>
               <CardTitle>All Fixtures</CardTitle>
+              <div className="flex gap-2 border-b">
+                <button
+                  onClick={() => setSelectedSport("all")}
+                  className={`px-4 py-2 text-sm font-medium transition-colors ${
+                    selectedSport === "all"
+                      ? "border-b-2 border-primary text-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  All Sports
+                </button>
+                <button
+                  onClick={() => setSelectedSport("1")}
+                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${
+                    selectedSport === "1"
+                      ? "border-b-2 border-primary text-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <span>⚽</span> Football
+                </button>
+                <button
+                  onClick={() => setSelectedSport("2")}
+                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${
+                    selectedSport === "2"
+                      ? "border-b-2 border-primary text-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <span>🏏</span> Cricket
+                </button>
+              </div>
             </CardHeader>
             <CardContent>
               <Table>
@@ -355,7 +410,7 @@ export default function FixturesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {fixturesList.map((fixture) => (
+                  {filteredFixtures.map((fixture) => (
                     <TableRow key={fixture.id}>
                       <TableCell>{getGameweekName(fixture.gameweekId)}</TableCell>
                       <TableCell className="font-medium">
@@ -394,7 +449,30 @@ export default function FixturesPage() {
         </TabsContent>
 
         <TabsContent value="gameweeks" className="space-y-4">
-          <div className="flex items-center justify-end">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Button
+                variant={gameweekSportFilter === "all" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setGameweekSportFilter("all")}
+              >
+                All Sports
+              </Button>
+              <Button
+                variant={gameweekSportFilter === "Football" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setGameweekSportFilter("Football")}
+              >
+                ⚽ Football
+              </Button>
+              <Button
+                variant={gameweekSportFilter === "Cricket" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setGameweekSportFilter("Cricket")}
+              >
+                🏏 Cricket
+              </Button>
+            </div>
             <Dialog open={isGameweekDialogOpen} onOpenChange={setIsGameweekDialogOpen}>
               <DialogTrigger asChild>
                 <Button onClick={handleCreateGameweek}>
@@ -541,44 +619,54 @@ export default function FixturesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {gameweeksList.map((gameweek) => (
-                    <TableRow key={gameweek.id}>
-                      <TableCell>
-                        <Badge variant="outline">GW{gameweek.number}</Badge>
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                          {gameweek.name}
-                        </div>
-                      </TableCell>
-                      <TableCell>{gameweek.startDate}</TableCell>
-                      <TableCell>{gameweek.endDate}</TableCell>
-                      <TableCell>{new Date(gameweek.deadline).toLocaleString()}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={getStatusBadge(gameweek.status)}>{gameweek.status}</Badge>
-                          {gameweek.isLocked && gameweek.status !== "completed" && (
-                            <Lock className="h-3 w-3 text-muted-foreground" />
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => handleEditGameweek(gameweek)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setGameweeksList(gameweeksList.filter((g) => g.id !== gameweek.id))}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {gameweeksList
+                    .filter((gameweek) => {
+                      if (gameweekSportFilter === "all") return true
+                      const season = seasons.find((s) => s.id === gameweek.seasonId)
+                      if (!season) return false
+                      const league = leagues.find((l) => l.id === season.leagueId)
+                      if (!league) return false
+                      const sport = sports.find((sp) => sp.id === league.sportId)
+                      return sport?.name === gameweekSportFilter
+                    })
+                    .map((gameweek) => (
+                      <TableRow key={gameweek.id}>
+                        <TableCell>
+                          <Badge variant="outline">GW{gameweek.number}</Badge>
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                            {gameweek.name}
+                          </div>
+                        </TableCell>
+                        <TableCell>{gameweek.startDate}</TableCell>
+                        <TableCell>{gameweek.endDate}</TableCell>
+                        <TableCell>{new Date(gameweek.deadline).toLocaleString()}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={getStatusBadge(gameweek.status)}>{gameweek.status}</Badge>
+                            {gameweek.isLocked && gameweek.status !== "completed" && (
+                              <Lock className="h-3 w-3 text-muted-foreground" />
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button variant="ghost" size="icon" onClick={() => handleEditGameweek(gameweek)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setGameweeksList(gameweeksList.filter((g) => g.id !== gameweek.id))}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
                 </TableBody>
               </Table>
             </CardContent>
