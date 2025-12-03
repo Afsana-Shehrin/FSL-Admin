@@ -31,6 +31,7 @@ export default function LeaguesPage() {
   const [isSeasonDialogOpen, setIsSeasonDialogOpen] = useState(false)
   const [editingLeague, setEditingLeague] = useState<League | null>(null)
   const [editingSeason, setEditingSeason] = useState<Season | null>(null)
+  const [selectedSport, setSelectedSport] = useState<string>("all")
 
   const [leagueFormData, setLeagueFormData] = useState({
     name: "",
@@ -47,7 +48,17 @@ export default function LeaguesPage() {
     isActive: true,
   })
 
-  const filteredLeagues = leaguesList.filter((league) => league.name.toLowerCase().includes(searchQuery.toLowerCase()))
+  const filteredLeagues = leaguesList.filter((league) => {
+    const matchesSearch = league.name.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesSport = selectedSport === "all" || league.sportId === selectedSport
+    return matchesSearch && matchesSport
+  })
+
+  const filteredSeasons = seasonsList.filter((season) => {
+    const league = leaguesList.find((l) => l.id === season.leagueId)
+    if (!league) return false
+    return selectedSport === "all" || league.sportId === selectedSport
+  })
 
   const handleEditLeague = (league: League) => {
     setEditingLeague(league)
@@ -132,22 +143,54 @@ export default function LeaguesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Leagues & Seasons</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Leagues & Seasons</h1>
           <p className="text-muted-foreground">Manage leagues and their seasons</p>
         </div>
       </div>
 
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-2 overflow-x-auto pb-2">
+            <Button
+              variant={selectedSport === "all" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedSport("all")}
+              className="whitespace-nowrap"
+            >
+              All Sports
+            </Button>
+            {sports
+              .filter((sport) => sport.isActive)
+              .map((sport) => (
+                <Button
+                  key={sport.id}
+                  variant={selectedSport === sport.id ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedSport(sport.id)}
+                  className="whitespace-nowrap"
+                >
+                  {sport.icon} {sport.name}
+                </Button>
+              ))}
+          </div>
+        </CardContent>
+      </Card>
+
       <Tabs defaultValue="leagues" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="leagues">Leagues</TabsTrigger>
-          <TabsTrigger value="seasons">Seasons</TabsTrigger>
+        <TabsList className="w-full sm:w-auto">
+          <TabsTrigger value="leagues" className="flex-1 sm:flex-none">
+            Leagues
+          </TabsTrigger>
+          <TabsTrigger value="seasons" className="flex-1 sm:flex-none">
+            Seasons
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="leagues" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="relative w-64">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="relative w-full sm:w-64">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search leagues..."
@@ -158,12 +201,12 @@ export default function LeaguesPage() {
             </div>
             <Dialog open={isLeagueDialogOpen} onOpenChange={setIsLeagueDialogOpen}>
               <DialogTrigger asChild>
-                <Button onClick={handleCreateLeague}>
+                <Button onClick={handleCreateLeague} className="w-full sm:w-auto">
                   <Plus className="mr-2 h-4 w-4" />
                   Add League
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-w-[95vw] sm:max-w-[500px]">
                 <DialogHeader>
                   <DialogTitle>{editingLeague ? "Edit League" : "Add New League"}</DialogTitle>
                   <DialogDescription>
@@ -231,47 +274,49 @@ export default function LeaguesPage() {
               <CardTitle>All Leagues</CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Sport</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredLeagues.map((league) => (
-                    <TableRow key={league.id}>
-                      <TableCell className="font-medium">{league.name}</TableCell>
-                      <TableCell>{getSportName(league.sportId)}</TableCell>
-                      <TableCell className="max-w-xs truncate">{league.description}</TableCell>
-                      <TableCell>
-                        <Badge variant={league.isActive ? "default" : "secondary"}>
-                          {league.isActive ? "Active" : "Inactive"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{league.createdAt}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => handleEditLeague(league)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setLeaguesList(leaguesList.filter((l) => l.id !== league.id))}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Sport</TableHead>
+                      <TableHead className="hidden md:table-cell">Description</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="hidden lg:table-cell">Created</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredLeagues.map((league) => (
+                      <TableRow key={league.id}>
+                        <TableCell className="font-medium">{league.name}</TableCell>
+                        <TableCell>{getSportName(league.sportId)}</TableCell>
+                        <TableCell className="hidden md:table-cell max-w-xs truncate">{league.description}</TableCell>
+                        <TableCell>
+                          <Badge variant={league.isActive ? "default" : "secondary"}>
+                            {league.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell">{league.createdAt}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button variant="ghost" size="icon" onClick={() => handleEditLeague(league)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setLeaguesList(leaguesList.filter((l) => l.id !== league.id))}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -280,12 +325,12 @@ export default function LeaguesPage() {
           <div className="flex justify-end">
             <Dialog open={isSeasonDialogOpen} onOpenChange={setIsSeasonDialogOpen}>
               <DialogTrigger asChild>
-                <Button onClick={handleCreateSeason}>
+                <Button onClick={handleCreateSeason} className="w-full sm:w-auto">
                   <Plus className="mr-2 h-4 w-4" />
                   Add Season
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-w-[95vw] sm:max-w-[500px]">
                 <DialogHeader>
                   <DialogTitle>{editingSeason ? "Edit Season" : "Add New Season"}</DialogTitle>
                   <DialogDescription>
@@ -362,52 +407,54 @@ export default function LeaguesPage() {
               <CardTitle>All Seasons</CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Season</TableHead>
-                    <TableHead>League</TableHead>
-                    <TableHead>Start Date</TableHead>
-                    <TableHead>End Date</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {seasonsList.map((season) => (
-                    <TableRow key={season.id}>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          {season.name}
-                        </div>
-                      </TableCell>
-                      <TableCell>{getLeagueName(season.leagueId)}</TableCell>
-                      <TableCell>{season.startDate}</TableCell>
-                      <TableCell>{season.endDate}</TableCell>
-                      <TableCell>
-                        <Badge variant={season.isActive ? "default" : "secondary"}>
-                          {season.isActive ? "Active" : "Inactive"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => handleEditSeason(season)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setSeasonsList(seasonsList.filter((s) => s.id !== season.id))}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Season</TableHead>
+                      <TableHead>League</TableHead>
+                      <TableHead className="hidden md:table-cell">Start Date</TableHead>
+                      <TableHead className="hidden md:table-cell">End Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredSeasons.map((season) => (
+                      <TableRow key={season.id}>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                            {season.name}
+                          </div>
+                        </TableCell>
+                        <TableCell>{getLeagueName(season.leagueId)}</TableCell>
+                        <TableCell className="hidden md:table-cell">{season.startDate}</TableCell>
+                        <TableCell className="hidden md:table-cell">{season.endDate}</TableCell>
+                        <TableCell>
+                          <Badge variant={season.isActive ? "default" : "secondary"}>
+                            {season.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button variant="ghost" size="icon" onClick={() => handleEditSeason(season)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setSeasonsList(seasonsList.filter((s) => s.id !== season.id))}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

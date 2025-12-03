@@ -103,6 +103,196 @@ export interface ActivityLog {
   timestamp: string
   details: string
 }
+export interface MatchResult {
+  id: string
+  fixtureId: string
+  homeTeamId: string
+  awayTeamId: string
+  homeScore: number
+  awayScore: number
+  sportId: string
+  kickoffTime: string
+  homePlayerStats: Array<{
+    playerId: string
+    playerName: string
+    position: string
+    stats: Record<string, number>
+  }>
+  awayPlayerStats: Array<{
+    playerId: string
+    playerName: string
+    position: string
+    stats: Record<string, number>
+  }>
+}
+
+export const dummyMatchResults: MatchResult[] = [
+  // Football Match: Manchester United vs Liverpool
+  {
+    id: "result_1",
+    fixtureId: "1",
+    homeTeamId: "1",
+    awayTeamId: "2",
+    homeScore: 2,
+    awayScore: 1,
+    sportId: "1",
+    kickoffTime: "2024-08-17T15:00:00Z",
+    homePlayerStats: [
+      {
+        playerId: "custom_mun_1",
+        playerName: "David de Gea",
+        position: "Goalkeeper",
+        stats: { goals: 0, assists: 0, cleanSheets: 0, yellowCards: 0, redCards: 0 },
+      },
+      {
+        playerId: "1",
+        playerName: "Bruno Fernandes",
+        position: "Midfielder",
+        stats: { goals: 1, assists: 1, cleanSheets: 0, yellowCards: 0, redCards: 0 },
+      },
+      {
+        playerId: "custom_mun_2",
+        playerName: "Marcus Rashford",
+        position: "Forward",
+        stats: { goals: 1, assists: 0, cleanSheets: 0, yellowCards: 1, redCards: 0 },
+      },
+    ],
+    awayPlayerStats: [
+      {
+        playerId: "custom_liv_1",
+        playerName: "Alisson Becker",
+        position: "Goalkeeper",
+        stats: { goals: 0, assists: 0, cleanSheets: 0, yellowCards: 0, redCards: 0 },
+      },
+      {
+        playerId: "2",
+        playerName: "Mohamed Salah",
+        position: "Forward",
+        stats: { goals: 1, assists: 0, cleanSheets: 0, yellowCards: 0, redCards: 0 },
+      },
+      {
+        playerId: "custom_liv_2",
+        playerName: "Virgil van Dijk",
+        position: "Defender",
+        stats: { goals: 0, assists: 0, cleanSheets: 0, yellowCards: 1, redCards: 0 },
+      },
+    ],
+  },
+  // Cricket Match: Chennai Super Kings vs Mumbai Indians
+  {
+    id: "result_2",
+    fixtureId: "6",
+    homeTeamId: "4",
+    awayTeamId: "3",
+    homeScore: 167,
+    awayScore: 171,
+    sportId: "2",
+    kickoffTime: "2025-03-22T19:30:00Z",
+    homePlayerStats: [
+      {
+        playerId: "4",
+        playerName: "MS Dhoni",
+        position: "Wicket-keeper",
+        stats: { runs: 45, ballsFaced: 32, wickets: 0, catches: 2, economyRate: 0 },
+      },
+      {
+        playerId: "custom_csk_1",
+        playerName: "Ruturaj Gaikwad",
+        position: "Batsman",
+        stats: { runs: 67, ballsFaced: 48, wickets: 0, catches: 1, economyRate: 0 },
+      },
+      {
+        playerId: "custom_csk_2",
+        playerName: "Ravindra Jadeja",
+        position: "All-rounder",
+        stats: { runs: 34, ballsFaced: 21, wickets: 2, catches: 1, economyRate: 7.5 },
+      },
+      {
+        playerId: "custom_csk_3",
+        playerName: "Deepak Chahar",
+        position: "Bowler",
+        stats: { runs: 8, ballsFaced: 5, wickets: 3, catches: 0, economyRate: 8.2 },
+      },
+    ],
+    awayPlayerStats: [
+      {
+        playerId: "3",
+        playerName: "Rohit Sharma",
+        position: "Batsman",
+        stats: { runs: 89, ballsFaced: 56, wickets: 0, catches: 2, economyRate: 0 },
+      },
+      {
+        playerId: "6",
+        playerName: "Jasprit Bumrah",
+        position: "Bowler",
+        stats: { runs: 12, ballsFaced: 8, wickets: 4, catches: 1, economyRate: 6.8 },
+      },
+      {
+        playerId: "custom_mi_1",
+        playerName: "Ishan Kishan",
+        position: "Wicket-keeper",
+        stats: { runs: 52, ballsFaced: 38, wickets: 0, catches: 3, economyRate: 0 },
+      },
+      {
+        playerId: "custom_mi_2",
+        playerName: "Suryakumar Yadav",
+        position: "Batsman",
+        stats: { runs: 18, ballsFaced: 14, wickets: 0, catches: 0, economyRate: 0 },
+      },
+    ],
+  },
+  // Cricket Match: Royal Challengers Bangalore vs Kolkata Knight Riders
+  {
+    id: "result_3",
+    fixtureId: "5",
+    homeTeamId: "5",
+    awayTeamId: "6",
+    homeScore: 198,
+    awayScore: 176,
+    sportId: "2",
+    kickoffTime: "2025-03-21T15:30:00Z",
+    homePlayerStats: [
+      {
+        playerId: "5",
+        playerName: "Virat Kohli",
+        position: "Batsman",
+        stats: { runs: 102, ballsFaced: 64, wickets: 0, catches: 1, economyRate: 0 },
+      },
+      {
+        playerId: "custom_rcb_1",
+        playerName: "Glenn Maxwell",
+        position: "All-rounder",
+        stats: { runs: 58, ballsFaced: 31, wickets: 1, catches: 2, economyRate: 9.0 },
+      },
+      {
+        playerId: "custom_rcb_2",
+        playerName: "Mohammad Siraj",
+        position: "Bowler",
+        stats: { runs: 6, ballsFaced: 4, wickets: 3, catches: 0, economyRate: 7.8 },
+      },
+    ],
+    awayPlayerStats: [
+      {
+        playerId: "7",
+        playerName: "Andre Russell",
+        position: "All-rounder",
+        stats: { runs: 78, ballsFaced: 42, wickets: 2, catches: 1, economyRate: 8.5 },
+      },
+      {
+        playerId: "custom_kkr_1",
+        playerName: "Shreyas Iyer",
+        position: "Batsman",
+        stats: { runs: 64, ballsFaced: 47, wickets: 0, catches: 2, economyRate: 0 },
+      },
+      {
+        playerId: "custom_kkr_2",
+        playerName: "Sunil Narine",
+        position: "All-rounder",
+        stats: { runs: 23, ballsFaced: 16, wickets: 2, catches: 1, economyRate: 6.5 },
+      },
+    ],
+  },
+]
 
 // Dummy Data
 export const sports: Sport[] = [

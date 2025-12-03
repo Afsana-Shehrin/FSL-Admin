@@ -182,23 +182,23 @@ export default function FixturesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Fixtures & Gameweeks</h1>
-          <p className="text-muted-foreground">Manage fixtures, gameweeks, and match schedules</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Fixtures & Gameweeks</h1>
+          <p className="text-sm md:text-base text-muted-foreground">Manage fixtures, gameweeks, and match schedules</p>
         </div>
       </div>
 
       <Tabs defaultValue="fixtures" className="space-y-4">
-        <TabsList>
+        <TabsList className="w-full justify-start overflow-x-auto">
           <TabsTrigger value="fixtures">Fixtures</TabsTrigger>
           <TabsTrigger value="gameweeks">Gameweeks</TabsTrigger>
         </TabsList>
 
         <TabsContent value="fixtures" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="relative w-64">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="relative w-full sm:w-64">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search fixtures..."
@@ -209,12 +209,12 @@ export default function FixturesPage() {
             </div>
             <Dialog open={isFixtureDialogOpen} onOpenChange={setIsFixtureDialogOpen}>
               <DialogTrigger asChild>
-                <Button onClick={handleCreateFixture}>
+                <Button onClick={handleCreateFixture} className="w-full sm:w-auto">
                   <Plus className="mr-2 h-4 w-4" />
                   Add Fixture
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl">
+              <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>{editingFixture ? "Edit Fixture" : "Add New Fixture"}</DialogTitle>
                   <DialogDescription>
@@ -350,11 +350,13 @@ export default function FixturesPage() {
                     />
                   </div>
                 </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsFixtureDialogOpen(false)}>
+                <DialogFooter className="flex-col sm:flex-row gap-2">
+                  <Button variant="outline" onClick={() => setIsFixtureDialogOpen(false)} className="w-full sm:w-auto">
                     Cancel
                   </Button>
-                  <Button onClick={handleSaveFixture}>{editingFixture ? "Update" : "Create"}</Button>
+                  <Button onClick={handleSaveFixture} className="w-full sm:w-auto">
+                    {editingFixture ? "Update" : "Create"}
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -363,10 +365,10 @@ export default function FixturesPage() {
           <Card>
             <CardHeader>
               <CardTitle>All Fixtures</CardTitle>
-              <div className="flex gap-2 border-b">
+              <div className="flex gap-2 mt-4 border-b overflow-x-auto">
                 <button
                   onClick={() => setSelectedSport("all")}
-                  className={`px-4 py-2 text-sm font-medium transition-colors ${
+                  className={`px-4 py-2 text-sm font-medium transition-colors relative whitespace-nowrap ${
                     selectedSport === "all"
                       ? "border-b-2 border-primary text-primary"
                       : "text-muted-foreground hover:text-foreground"
@@ -375,9 +377,9 @@ export default function FixturesPage() {
                   All Sports
                 </button>
                 <button
-                  onClick={() => setSelectedSport("1")}
-                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${
-                    selectedSport === "1"
+                  onClick={() => setSelectedSport("Football")}
+                  className={`px-4 py-2 text-sm font-medium transition-colors relative whitespace-nowrap ${
+                    selectedSport === "Football"
                       ? "border-b-2 border-primary text-primary"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
@@ -385,9 +387,9 @@ export default function FixturesPage() {
                   <span>⚽</span> Football
                 </button>
                 <button
-                  onClick={() => setSelectedSport("2")}
-                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${
-                    selectedSport === "2"
+                  onClick={() => setSelectedSport("Cricket")}
+                  className={`px-4 py-2 text-sm font-medium transition-colors relative whitespace-nowrap ${
+                    selectedSport === "Cricket"
                       ? "border-b-2 border-primary text-primary"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
@@ -396,7 +398,7 @@ export default function FixturesPage() {
                 </button>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -449,24 +451,24 @@ export default function FixturesPage() {
         </TabsContent>
 
         <TabsContent value="gameweeks" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex flex-wrap gap-2">
               <Button
-                variant={gameweekSportFilter === "all" ? "default" : "ghost"}
+                variant={gameweekSportFilter === "all" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setGameweekSportFilter("all")}
               >
                 All Sports
               </Button>
               <Button
-                variant={gameweekSportFilter === "Football" ? "default" : "ghost"}
+                variant={gameweekSportFilter === "Football" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setGameweekSportFilter("Football")}
               >
                 ⚽ Football
               </Button>
               <Button
-                variant={gameweekSportFilter === "Cricket" ? "default" : "ghost"}
+                variant={gameweekSportFilter === "Cricket" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setGameweekSportFilter("Cricket")}
               >
@@ -475,12 +477,12 @@ export default function FixturesPage() {
             </div>
             <Dialog open={isGameweekDialogOpen} onOpenChange={setIsGameweekDialogOpen}>
               <DialogTrigger asChild>
-                <Button onClick={handleCreateGameweek}>
+                <Button onClick={handleCreateGameweek} className="w-full sm:w-auto">
                   <Plus className="mr-2 h-4 w-4" />
                   Add Gameweek
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl">
+              <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>{editingGameweek ? "Edit Gameweek" : "Add New Gameweek"}</DialogTitle>
                   <DialogDescription>
@@ -591,11 +593,13 @@ export default function FixturesPage() {
                     </Select>
                   </div>
                 </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsGameweekDialogOpen(false)}>
+                <DialogFooter className="flex-col sm:flex-row gap-2">
+                  <Button variant="outline" onClick={() => setIsGameweekDialogOpen(false)} className="w-full sm:w-auto">
                     Cancel
                   </Button>
-                  <Button onClick={handleSaveGameweek}>{editingGameweek ? "Update" : "Create"}</Button>
+                  <Button onClick={handleSaveGameweek} className="w-full sm:w-auto">
+                    {editingGameweek ? "Update" : "Create"}
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -605,7 +609,7 @@ export default function FixturesPage() {
             <CardHeader>
               <CardTitle>All Gameweeks</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>

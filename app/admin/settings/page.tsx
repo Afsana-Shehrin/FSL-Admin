@@ -32,7 +32,6 @@ interface Admin {
 
 export default function SettingsPage() {
   const [admins, setAdmins] = useState<Admin[]>([])
-  const [currentUserEmail, setCurrentUserEmail] = useState<string>("")
   const [currentUserRole, setCurrentUserRole] = useState<string>("")
   const [isAddAdminOpen, setIsAddAdminOpen] = useState(false)
   const [isEditAdminOpen, setIsEditAdminOpen] = useState(false)
@@ -48,54 +47,29 @@ export default function SettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    const adminEmail = localStorage.getItem("adminEmail") || process.env.NEXT_PUBLIC_DEFAULT_SUPER_ADMIN_EMAIL
-  setCurrentUserEmail(adminEmail)
-    
-    // Get admins from localStorage or initialize with afsanashehrin@gmail.com as Super Admin
-    let storedAdmins = JSON.parse(localStorage.getItem("loggedInAdmins") || "[]")
-    
-    // Check if afsanashehrin@gmail.com already exists
-    const hasDefaultAdmin = storedAdmins.some((admin: Admin) => 
-      admin.email === process.env.NEXT_PUBLIC_DEFAULT_SUPER_ADMIN_EMAIL
-    )
-    
-    // If not, add it as Super Admin
-    if (!hasDefaultAdmin) {
-      const defaultAdmin: Admin = {
-        id: "default_super_admin",
-        name: process.env.NEXT_PUBLIC_DEFAULT_SUPER_ADMIN_NAME || "Super Admin",
-        email: process.env.NEXT_PUBLIC_DEFAULT_SUPER_ADMIN_EMAIL,
-        role: process.env.NEXT_PUBLIC_DEFAULT_SUPER_ADMIN_ROLE || "Super Admin",
-        status: "active"
+    const adminEmail = localStorage.getItem("adminEmail")
+    if (adminEmail) {
+      const loggedInAdmins = JSON.parse(localStorage.getItem("loggedInAdmins") || "[]")
+      const currentUser = loggedInAdmins.find((admin: Admin) => admin.email === adminEmail)
+      if (currentUser) {
+        setCurrentUserRole(currentUser.role)
       }
-      storedAdmins = [defaultAdmin, ...storedAdmins]
-      localStorage.setItem("loggedInAdmins", JSON.stringify(storedAdmins))
-    }
-    
-    // Ensure afsanashehrin@gmail.com has a profile
-    if (!localStorage.getItem("admin_profile_afsanashehrin@gmail.com")) {
-      localStorage.setItem(
-        "admin_profile_afsanashehrin@gmail.com",
-        JSON.stringify({
-          phone: "",
-          profilePicture: null,
-        })
-      )
-    }
-    
-    // Set state
-    setAdmins(storedAdmins)
-    
-    // Set current user role
-    const currentUser = storedAdmins.find((admin: Admin) => admin.email === adminEmail)
-    if (currentUser) {
-      setCurrentUserRole(currentUser.role)
-    } else {
-      // If current user not found in admins, default to Super Admin for afsanashehrin@gmail.com
-      if (adminEmail === "afsanashehrin@gmail.com") {
-        setCurrentUserRole("Super Admin")
+
+      const storedAdmins = localStorage.getItem("loggedInAdmins")
+      if (storedAdmins) {
+        setAdmins(JSON.parse(storedAdmins))
       }
     }
+
+    const handleStorageChange = () => {
+      const storedAdmins = localStorage.getItem("loggedInAdmins")
+      if (storedAdmins) {
+        setAdmins(JSON.parse(storedAdmins))
+      }
+    }
+
+    window.addEventListener("storage", handleStorageChange)
+    return () => window.removeEventListener("storage", handleStorageChange)
   }, [])
 
   const handleAddAdmin = () => {
@@ -108,14 +82,6 @@ export default function SettingsPage() {
       alert("Please fill in all required fields")
       return
     }
-    
-    // Check if admin with this email already exists
-    const adminExists = admins.some(admin => admin.email.toLowerCase() === newAdmin.email.toLowerCase())
-    if (adminExists) {
-      alert("An admin with this email already exists")
-      return
-    }
-    
     const adminToAdd = {
       ...newAdmin,
       id: Date.now().toString(),
@@ -123,14 +89,6 @@ export default function SettingsPage() {
     const updatedAdmins = [...admins, adminToAdd]
     setAdmins(updatedAdmins)
     localStorage.setItem("loggedInAdmins", JSON.stringify(updatedAdmins))
-    
-    // Create default profile for new admin
-    const defaultProfile = {
-      phone: "",
-      profilePicture: null
-    }
-    localStorage.setItem(`admin_profile_${newAdmin.email}`, JSON.stringify(defaultProfile))
-    
     setIsAddAdminOpen(false)
     setNewAdmin({
       id: "",
@@ -139,7 +97,6 @@ export default function SettingsPage() {
       role: "Editor",
       status: "active",
     })
-    alert("Admin added successfully!")
   }
 
   const handleToggleStatus = (adminId: string) => {
@@ -148,20 +105,11 @@ export default function SettingsPage() {
       return
     }
 
-    const adminToToggle = admins.find(admin => admin.id === adminId)
-    
-    // Prevent deactivating yourself
-    if (adminToToggle?.email === currentUserEmail) {
-      alert("You cannot deactivate your own account")
-      return
-    }
-
     const updatedAdmins = admins.map((admin) =>
       admin.id === adminId ? { ...admin, status: admin.status === "active" ? "inactive" : "active" } : admin,
     )
     setAdmins(updatedAdmins)
     localStorage.setItem("loggedInAdmins", JSON.stringify(updatedAdmins))
-    alert("Admin status updated successfully!")
   }
 
   const handleEditAdmin = (admin: Admin) => {
@@ -177,14 +125,6 @@ export default function SettingsPage() {
 
   const handleSaveEdit = () => {
     if (!currentAdmin) return
-    
-    // Check if email is being changed
-    const originalAdmin = admins.find(admin => admin.id === currentAdmin.id)
-    if (originalAdmin && originalAdmin.email !== currentAdmin.email) {
-      alert("Cannot change admin email. Please delete and create a new admin instead.")
-      return
-    }
-    
     const updatedAdmins = admins.map((admin) => (admin.id === currentAdmin.id ? currentAdmin : admin))
     setAdmins(updatedAdmins)
     localStorage.setItem("loggedInAdmins", JSON.stringify(updatedAdmins))
@@ -192,19 +132,17 @@ export default function SettingsPage() {
     alert("Admin updated successfully!")
   }
 
-  const isCurrentUser = (adminEmail: string) => {
-    return adminEmail === currentUserEmail
-  }
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground">Manage admin accounts, permissions, and system settings</p>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Settings</h1>
+        <p className="text-sm md:text-base text-muted-foreground">
+          Manage admin accounts, permissions, and system settings
+        </p>
       </div>
 
       <Tabs defaultValue="admins" className="space-y-4">
-        <TabsList>
+        <TabsList className="w-full justify-start overflow-x-auto">
           <TabsTrigger value="admins">Admins</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="system">System</TabsTrigger>
@@ -213,26 +151,23 @@ export default function SettingsPage() {
         <TabsContent value="admins" className="space-y-4">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <CardTitle>Admins</CardTitle>
                   <CardDescription>Manage admin accounts and their permissions</CardDescription>
                   {currentUserRole !== "Super Admin" && (
                     <p className="text-sm text-muted-foreground mt-2">Only Super Admins can manage this section</p>
                   )}
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Logged in as: <span className="font-medium">{currentUserEmail}</span> ({currentUserRole})
-                  </p>
                 </div>
                 {currentUserRole === "Super Admin" && (
-                  <Button onClick={() => setIsAddAdminOpen(true)}>
+                  <Button onClick={() => setIsAddAdminOpen(true)} className="w-full sm:w-auto">
                     <Plus className="mr-2 h-4 w-4" />
                     Add Admin
                   </Button>
                 )}
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -253,6 +188,8 @@ export default function SettingsPage() {
                     const profilePicture = adminProfile.profilePicture || null
                     const phoneNumber = adminProfile.phone || "N/A"
 
+                    console.log("[v0] Admin:", admin.email, "Phone from profile:", phoneNumber)
+
                     return (
                       <TableRow key={admin.id}>
                         <TableCell>
@@ -271,9 +208,6 @@ export default function SettingsPage() {
                             <span className="font-medium">
                               {admin.name ||
                                 admin.email.split("@")[0].charAt(0).toUpperCase() + admin.email.split("@")[0].slice(1)}
-                              {isCurrentUser(admin.email) && (
-                                <span className="ml-2 text-xs text-primary"></span>
-                              )}
                             </span>
                           </div>
                         </TableCell>
@@ -288,12 +222,12 @@ export default function SettingsPage() {
                         <TableCell>
                           <button
                             onClick={() => handleToggleStatus(admin.id)}
-                            disabled={currentUserRole !== "Super Admin" || isCurrentUser(admin.email)}
+                            disabled={currentUserRole !== "Super Admin"}
                           >
                             <Badge
                               variant={admin.status === "active" ? "default" : "secondary"}
                               className={
-                                currentUserRole === "Super Admin" && !isCurrentUser(admin.email)
+                                currentUserRole === "Super Admin"
                                   ? "cursor-pointer hover:opacity-80"
                                   : "cursor-not-allowed opacity-60"
                               }
@@ -411,7 +345,7 @@ export default function SettingsPage() {
       </Tabs>
 
       <Dialog open={isAddAdminOpen} onOpenChange={setIsAddAdminOpen}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader>
             <DialogTitle>Add New Admin</DialogTitle>
             <DialogDescription>Create a new admin account with specific permissions</DialogDescription>
@@ -466,21 +400,23 @@ export default function SettingsPage() {
               </Select>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddAdminOpen(false)}>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setIsAddAdminOpen(false)} className="w-full sm:w-auto">
               Cancel
             </Button>
-            <Button onClick={handleAddAdmin}>Add Admin</Button>
+            <Button onClick={handleAddAdmin} className="w-full sm:w-auto">
+              Add Admin
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={isEditAdminOpen} onOpenChange={setIsEditAdminOpen}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit Admin</DialogTitle>
+            <DialogTitle>{isViewMode ? "View Admin" : "Edit Admin"}</DialogTitle>
             <DialogDescription>
-              Update admin account information
+              {isViewMode ? "View admin account details" : "Update admin account information"}
             </DialogDescription>
           </DialogHeader>
           {currentAdmin && (
@@ -491,6 +427,7 @@ export default function SettingsPage() {
                   id="edit-name"
                   value={currentAdmin.name}
                   onChange={(e) => setCurrentAdmin({ ...currentAdmin, name: e.target.value })}
+                  disabled={isViewMode}
                 />
               </div>
               <div className="space-y-2">
@@ -499,16 +436,16 @@ export default function SettingsPage() {
                   id="edit-email"
                   type="email"
                   value={currentAdmin.email}
-                  disabled={true}
-                  className="bg-muted"
+                  onChange={(e) => setCurrentAdmin({ ...currentAdmin, email: e.target.value })}
+                  disabled={isViewMode}
                 />
-                <p className="text-xs text-muted-foreground mt-1">Email cannot be changed</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-role">Role</Label>
                 <Select
                   value={currentAdmin.role}
                   onValueChange={(value) => setCurrentAdmin({ ...currentAdmin, role: value })}
+                  disabled={isViewMode}
                 >
                   <SelectTrigger id="edit-role">
                     <SelectValue placeholder="Select role" />
@@ -526,7 +463,7 @@ export default function SettingsPage() {
                 <Select
                   value={currentAdmin.status}
                   onValueChange={(value: "active" | "inactive") => setCurrentAdmin({ ...currentAdmin, status: value })}
-                  disabled={isCurrentUser(currentAdmin.email)}
+                  disabled={isViewMode}
                 >
                   <SelectTrigger id="edit-status">
                     <SelectValue placeholder="Select status" />
@@ -536,17 +473,18 @@ export default function SettingsPage() {
                     <SelectItem value="inactive">Inactive</SelectItem>
                   </SelectContent>
                 </Select>
-                {isCurrentUser(currentAdmin.email) && (
-                  <p className="text-xs text-muted-foreground mt-1">Cannot change your own status</p>
-                )}
               </div>
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditAdminOpen(false)}>
-              Cancel
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setIsEditAdminOpen(false)} className="w-full sm:w-auto">
+              {isViewMode ? "Close" : "Cancel"}
             </Button>
-            <Button onClick={handleSaveEdit}>Save Changes</Button>
+            {!isViewMode && (
+              <Button onClick={handleSaveEdit} className="w-full sm:w-auto">
+                Save Changes
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

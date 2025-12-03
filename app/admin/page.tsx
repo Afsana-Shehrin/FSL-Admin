@@ -146,13 +146,13 @@ export default function AdminDashboard() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">Welcome to your fantasy sports admin panel</p>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-sm md:text-base text-muted-foreground">Welcome to your fantasy sports admin panel</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => {
           const Icon = stat.icon
           return (
@@ -169,7 +169,7 @@ export default function AdminDashboard() {
         })}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
@@ -255,7 +255,7 @@ export default function AdminDashboard() {
       </div>
 
       <Dialog open={lockDialogOpen} onOpenChange={setLockDialogOpen}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader>
             <DialogTitle>Trigger Gameweek Lock</DialogTitle>
             <DialogDescription>
@@ -297,7 +297,7 @@ export default function AdminDashboard() {
       </Dialog>
 
       <Dialog open={scoringDialogOpen} onOpenChange={setScoringDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="w-[95vw] max-w-2xl">
           <DialogHeader>
             <DialogTitle>Run Scoring Calculation</DialogTitle>
             <DialogDescription>
@@ -372,7 +372,7 @@ export default function AdminDashboard() {
       </Dialog>
 
       <Dialog open={statsDialogOpen} onOpenChange={setStatsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader>
             <DialogTitle>Update Player Stats</DialogTitle>
             <DialogDescription>Choose the source for player statistics synchronization.</DialogDescription>
@@ -418,7 +418,7 @@ export default function AdminDashboard() {
       </Dialog>
 
       <Dialog open={addActionDialogOpen} onOpenChange={setAddActionDialogOpen}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader>
             <DialogTitle>Add Quick Action</DialogTitle>
             <DialogDescription>Create a new quick action button for frequently used operations.</DialogDescription>

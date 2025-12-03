@@ -113,20 +113,20 @@ export default function PlayersPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Players Management</h1>
-          <p className="text-muted-foreground">Manage players, prices, and availability</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Players Management</h1>
+          <p className="text-sm md:text-base text-muted-foreground">Manage players, prices, and availability</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={handleCreate}>
+            <Button onClick={handleCreate} className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               Add Player
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingPlayer ? "Edit Player" : "Add New Player"}</DialogTitle>
               <DialogDescription>
@@ -233,11 +233,13 @@ export default function PlayersPage() {
                 />
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="w-full sm:w-auto">
                 Cancel
               </Button>
-              <Button onClick={handleSave}>{editingPlayer ? "Update" : "Create"}</Button>
+              <Button onClick={handleSave} className="w-full sm:w-auto">
+                {editingPlayer ? "Update" : "Create"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -245,9 +247,9 @@ export default function PlayersPage() {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <CardTitle>All Players</CardTitle>
-            <div className="relative w-64">
+            <div className="relative w-full sm:w-64">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search players..."
@@ -257,7 +259,7 @@ export default function PlayersPage() {
               />
             </div>
           </div>
-          <div className="flex gap-2 mt-4">
+          <div className="flex flex-wrap gap-2 mt-4">
             <Button
               variant={selectedSport === "all" ? "default" : "outline"}
               size="sm"
@@ -281,7 +283,7 @@ export default function PlayersPage() {
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>

@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,6 +18,29 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [showInactiveMessage, setShowInactiveMessage] = useState(false)
+
+  useEffect(() => {
+    const initializeSuperAdmin = () => {
+      const loggedInAdmins = JSON.parse(localStorage.getItem("loggedInAdmins") || "[]")
+      const superAdminEmail = "afsanashehrin@gmail.com"
+      const existingSuperAdmin = loggedInAdmins.find((admin: any) => admin.email === superAdminEmail)
+
+      if (!existingSuperAdmin) {
+        const superAdmin = {
+          id: "super_admin_001",
+          name: "Afsana Shehrin",
+          email: superAdminEmail,
+          role: "Super Admin",
+          status: "active",
+          createdAt: new Date().toISOString(),
+        }
+        loggedInAdmins.push(superAdmin)
+        localStorage.setItem("loggedInAdmins", JSON.stringify(loggedInAdmins))
+      }
+    }
+
+    initializeSuperAdmin()
+  }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()

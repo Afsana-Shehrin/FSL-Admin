@@ -93,20 +93,20 @@ export default function TeamsPage() {
   const availableSports = sports.filter((sport) => sport.name === "Football" || sport.name === "Cricket")
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Teams Management</h1>
-          <p className="text-muted-foreground">Manage teams across all sports</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Teams Management</h1>
+          <p className="text-sm md:text-base text-muted-foreground">Manage teams across all sports</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={handleCreate}>
+            <Button onClick={handleCreate} className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               Add Team
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingTeam ? "Edit Team" : "Add New Team"}</DialogTitle>
               <DialogDescription>
@@ -202,11 +202,13 @@ export default function TeamsPage() {
                 />
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="w-full sm:w-auto">
                 Cancel
               </Button>
-              <Button onClick={handleSave}>{editingTeam ? "Update" : "Create"}</Button>
+              <Button onClick={handleSave} className="w-full sm:w-auto">
+                {editingTeam ? "Update" : "Create"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -214,9 +216,9 @@ export default function TeamsPage() {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <CardTitle>All Teams</CardTitle>
-            <div className="relative w-64">
+            <div className="relative w-full sm:w-64">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search teams..."
@@ -226,10 +228,10 @@ export default function TeamsPage() {
               />
             </div>
           </div>
-          <div className="flex gap-2 mt-4 border-b">
+          <div className="flex gap-2 mt-4 border-b overflow-x-auto">
             <button
               onClick={() => setSelectedSportId("all")}
-              className={`px-4 py-2 text-sm font-medium transition-colors relative ${
+              className={`px-4 py-2 text-sm font-medium transition-colors relative whitespace-nowrap ${
                 selectedSportId === "all" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -240,7 +242,7 @@ export default function TeamsPage() {
               <button
                 key={sport.id}
                 onClick={() => setSelectedSportId(sport.id)}
-                className={`px-4 py-2 text-sm font-medium transition-colors relative ${
+                className={`px-4 py-2 text-sm font-medium transition-colors relative whitespace-nowrap ${
                   selectedSportId === sport.id ? "text-foreground" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -250,7 +252,7 @@ export default function TeamsPage() {
             ))}
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>

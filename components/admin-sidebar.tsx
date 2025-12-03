@@ -3,7 +3,21 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { LayoutDashboard, Trophy, Users, Calendar, Shield, FileText, Settings ,User,ClipboardList} from "lucide-react"
+import {
+  LayoutDashboard,
+  Trophy,
+  Users,
+  Calendar,
+  Shield,
+  FileText,
+  Settings,
+  ClipboardList,
+  X,
+  Menu,
+  User,
+} from "lucide-react"
+import { useState, useEffect } from "react"
+import { Button } from "@/components/ui/button"
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
@@ -13,44 +27,86 @@ const navItems = [
   { href: "/admin/players", label: "Players", icon: Users },
   { href: "/admin/fixtures", label: "Fixtures", icon: Calendar },
   { href: "/admin/results", label: "Results Board", icon: ClipboardList },
+  { href: "/admin/users", label: "Users", icon: User },
   { href: "/admin/rules", label: "Rules", icon: FileText },
-  { href: "/admin/users",label: "Users",icon: User},
   { href: "/admin/logs", label: "Activity Logs", icon: FileText },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ]
 
 export function AdminSidebar() {
   const pathname = usePathname()
+  const [isOpen, setIsOpen] = useState(false)
+
+  useEffect(() => {
+    setIsOpen(false)
+  }, [pathname])
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (isOpen && !target.closest("[data-sidebar]") && !target.closest("[data-menu-button]")) {
+        setIsOpen(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [isOpen])
 
   return (
-    <div className="flex h-full w-64 flex-col bg-sidebar border-r border-sidebar-border">
-      <div className="flex h-16 items-center border-b border-sidebar-border px-6">
-        <Trophy className="h-6 w-6 text-sidebar-primary" />
-        <span className="ml-2 text-lg font-semibold text-sidebar-foreground">Fantasy Admin</span>
+    <>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="fixed top-3 left-3 z-50 md:hidden"
+        onClick={() => setIsOpen(!isOpen)}
+        data-menu-button
+      >
+        <Menu className="h-6 w-6" />
+      </Button>
+
+      {isOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setIsOpen(false)} />}
+
+      <div
+        data-sidebar
+        className={cn(
+          "fixed md:static inset-y-0 left-0 z-40 flex h-full w-64 flex-col bg-sidebar border-r border-sidebar-border transition-transform duration-300 md:translate-x-0",
+          isOpen ? "translate-x-0" : "-translate-x-full",
+        )}
+      >
+        <div className="flex h-16 items-center border-b border-sidebar-border px-6 justify-between">
+          <div className="flex items-center">
+            <Trophy className="h-6 w-6 text-sidebar-primary" />
+            <span className="ml-2 text-lg font-semibold text-sidebar-foreground">Fantasy Admin</span>
+          </div>
+          <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsOpen(false)}>
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+
+        <nav className="flex-1 space-y-1 p-4 overflow-y-auto">
+          {navItems.map((item) => {
+            const Icon = item.icon
+            const isActive = pathname === item.href
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
+                )}
+              >
+                <Icon className="h-4 w-4" />
+                {item.label}
+              </Link>
+            )
+          })}
+        </nav>
       </div>
-
-      <nav className="flex-1 space-y-1 p-4">
-        {navItems.map((item) => {
-          const Icon = item.icon
-          const isActive = pathname === item.href
-
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {item.label}
-            </Link>
-          )
-        })}
-      </nav>
-    </div>
+    </>
   )
 }

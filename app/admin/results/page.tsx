@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ChevronDown, ChevronUp, Trophy, AlertCircle, Plus, Search, X } from "lucide-react"
-import { fixtures, teams, sports } from "@/lib/dummy-data"
+import { fixtures, teams, sports, dummyMatchResults } from "@/lib/dummy-data"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
   Dialog,
@@ -71,20 +71,28 @@ export default function ResultsPage() {
     if (savedResults) {
       try {
         const parsed = JSON.parse(savedResults)
-        setMatchResults(parsed)
+        // Merge dummy data with saved data, avoiding duplicates
+        const mergedResults = [...dummyMatchResults]
+        parsed.forEach((savedResult: MatchResult) => {
+          const isDuplicate = mergedResults.some((dummy) => dummy.id === savedResult.id)
+          if (!isDuplicate) {
+            mergedResults.push(savedResult)
+          }
+        })
+        setMatchResults(mergedResults)
       } catch (e) {
         console.error("Failed to parse saved results:", e)
+        setMatchResults(dummyMatchResults)
       }
     } else {
-      setMatchResults([])
+      // No saved data, use dummy data as initial state
+      setMatchResults(dummyMatchResults)
     }
   }, [])
 
   useEffect(() => {
     if (matchResults.length > 0) {
       localStorage.setItem("match_results", JSON.stringify(matchResults))
-    } else {
-      localStorage.removeItem("match_results")
     }
   }, [matchResults])
 
