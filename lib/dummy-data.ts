@@ -814,3 +814,24 @@ export const activityLogs: ActivityLog[] = [
     details: "Created Gameweek 3",
   },
 ]
+
+export const initializeSports = () => {
+  if (typeof window !== "undefined") {
+    const storedSports = localStorage.getItem("sports")
+    if (!storedSports) {
+      localStorage.setItem("sports", JSON.stringify(sports))
+    }
+  }
+}
+
+export const getStoredSports = (): Sport[] => {
+  if (typeof window !== "undefined") {
+    const stored = localStorage.getItem("sports")
+    return stored ? JSON.parse(stored) : sports
+  }
+  return sports
+}
+
+export const getSports = (): Sport[] => {
+  return sports.filter((s) => s.isActive)
+}
