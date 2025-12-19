@@ -1,7 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Bell } from "lucide-react"
+import { Bell, LogOut } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -14,97 +13,95 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { EditProfileDialog } from "./edit-profile-dialog"
+import { getSupabase } from "@/lib/supabase/working-client"
+import { toast } from "sonner"
+import { useState } from "react"
 
-export function AdminHeader() {
+// Define prop types
+interface AdminHeaderProps {
+  admin: {
+    id: string
+    email: string
+    name?: string
+    role?: string
+    phone?: string | null
+    image?: string | null
+    is_active?: boolean
+    created_at?: string
+    updated_at?: string
+  }
+}
+
+export function AdminHeader({ admin }: AdminHeaderProps) {
   const router = useRouter()
   const [showProfileDialog, setShowProfileDialog] = useState(false)
   const [profile, setProfile] = useState({
-    name: "",
-    email: "",
-    username: "",
-    phone: "",
-    image: undefined as string | undefined,
+    id: admin.id,
+    name: admin.name || admin.email.split('@')[0],
+    email: admin.email,
+    phone: admin.phone || null,
+    image: admin.image || undefined,
+    role: admin.role || "Admin"
   })
-
-  useEffect(() => {
-    loadProfileData()
-  }, [showProfileDialog])
-
-  const loadProfileData = () => {
-    const adminEmail = localStorage.getItem("adminEmail") || ""
-
-    const storedProfile = localStorage.getItem(`admin_profile_${adminEmail}`)
-    const legacyProfile = localStorage.getItem(`profile_${adminEmail}`)
-
-    // Get name from loggedInAdmins if not in profile
-    const loggedInAdmins = JSON.parse(localStorage.getItem("loggedInAdmins") || "[]")
-    const adminData = loggedInAdmins.find((admin: any) => admin.email === adminEmail)
-
-    if (storedProfile) {
-      const parsed = JSON.parse(storedProfile)
-      setProfile({
-        name: parsed.name || adminData?.name || "",
-        email: adminEmail,
-        username: parsed.username || "",
-        phone: parsed.phone || "",
-        image: parsed.profilePicture || undefined,
-      })
-    } else if (legacyProfile) {
-      const parsed = JSON.parse(legacyProfile)
-      setProfile({
-        name: parsed.name || adminData?.name || "",
-        email: adminEmail,
-        username: parsed.username || "",
-        phone: parsed.phone || "",
-        image: parsed.profilePicture || undefined,
-      })
-    } else {
-      setProfile({
-        name: adminData?.name || "",
-        email: adminEmail,
-        username: "",
-        phone: "",
-        image: undefined,
-      })
+  
+  const handleLogout = async () => {
+    try {
+      localStorage.removeItem('admin_logged_in')
+      localStorage.removeItem('admin_email')
+      toast.success('Signed out successfully')
+      router.push('/')
+      router.refresh()
+    } catch (error: any) {
+      toast.error('Error: ' + error.message)
     }
   }
 
-  const handleLogout = () => {
-    localStorage.removeItem("adminEmail")
-    router.push("/")
-  }
+  const handleSaveProfile = async (updatedProfile: {
+    name: string
+    email: string
+    username: string
+    phone: string
+    image?: string
+  }) => {
+    try {
+      const supabase = getSupabase()
+      
+      // Update in Supabase
+      const { error } = await supabase
+        .from('admins')
+        .update({
+          name: updatedProfile.name,
+          phone: updatedProfile.phone || null // Convert empty string to null
+        })
+        .eq('id', profile.id)
 
-  const handleSaveProfile = (updatedProfile: typeof profile) => {
-    const adminEmail = localStorage.getItem("adminEmail") || ""
+      if (error) {
+        toast.error('Failed to update profile: ' + error.message)
+        return
+      }
 
-    console.log("[v0] Saving profile for:", adminEmail, "with phone:", updatedProfile.phone)
-
-    localStorage.setItem(
-      `admin_profile_${adminEmail}`,
-      JSON.stringify({
+      // Update local state
+      setProfile(prev => ({
+        ...prev,
         name: updatedProfile.name,
-        username: updatedProfile.username,
-        phone: updatedProfile.phone,
-        profilePicture: updatedProfile.image,
-      }),
-    )
+        phone: updatedProfile.phone || null,
+        image: updatedProfile.image
+      }))
 
-    const loggedInAdmins = JSON.parse(localStorage.getItem("loggedInAdmins") || "[]")
-    const adminIndex = loggedInAdmins.findIndex((admin: any) => admin.email === adminEmail)
-    if (adminIndex !== -1) {
-      loggedInAdmins[adminIndex].name = updatedProfile.name
-      localStorage.setItem("loggedInAdmins", JSON.stringify(loggedInAdmins))
+      toast.success('Profile updated successfully')
+      setShowProfileDialog(false)
+      
+      // Refresh the page to show updated data
+      router.refresh()
+    } catch (error: any) {
+      toast.error('Error: ' + error.message)
     }
-
-    setProfile(updatedProfile)
-
-    window.dispatchEvent(new Event("storage"))
   }
 
   return (
     <>
       <header className="flex h-16 items-center justify-between border-b bg-card px-4 md:px-6">
-        <div className="flex flex-1 items-center ml-12 md:ml-0">
+         <div className="flex flex-1 items-center ml-12 md:ml-0">
           <h1 className="text-lg md:text-2xl font-bold text-foreground">ADMIN PORTAL</h1>
         </div>
 
@@ -118,24 +115,40 @@ export function AdminHeader() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-9 w-9 md:h-10 md:w-10 rounded-full">
                 <Avatar className="h-8 w-8 md:h-9 md:w-9">
-                  <AvatarImage src={profile.image || "/placeholder.svg"} alt={profile.name || "Admin"} />
+                  <AvatarImage 
+                    src={profile.image || "/placeholder.svg"} 
+                    alt={profile.name || "Admin"} 
+                  />
                   <AvatarFallback>
                     {profile.name
                       ? profile.name
                           .split(" ")
                           .map((n) => n[0])
                           .join("")
-                      : "A"}
+                      : profile.email?.charAt(0).toUpperCase() || "A"}
                   </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>{profile.name || profile.email}</DropdownMenuLabel>
+              {/* Simple dropdown label like prototype */}
+              <DropdownMenuLabel>
+                {profile.name || profile.email}
+              </DropdownMenuLabel>
+              
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setShowProfileDialog(true)}>Profile</DropdownMenuItem>
+              
+              {/* Changed from "Edit Profile" to just "Profile" like prototype */}
+              <DropdownMenuItem onClick={() => setShowProfileDialog(true)}>
+                Profile
+              </DropdownMenuItem>
+              
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
+              
+              {/* Simple logout like prototype */}
+              <DropdownMenuItem onClick={handleLogout}>
+                Logout
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -144,7 +157,13 @@ export function AdminHeader() {
       <EditProfileDialog
         open={showProfileDialog}
         onOpenChange={setShowProfileDialog}
-        profile={profile}
+        profile={{
+          name: profile.name || "Admin User",
+          email: profile.email,
+          username: profile.name || "", // Using name as username if available
+          phone: profile.phone || "",
+          image: profile.image
+        }}
         onSave={handleSaveProfile}
       />
     </>

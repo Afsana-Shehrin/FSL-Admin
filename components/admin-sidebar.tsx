@@ -14,11 +14,18 @@ import {
   ClipboardList,
   X,
   Menu,
-  User,
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 
+// Define prop types
+interface AdminSidebarProps {
+  admin: {
+    role?: string
+  }
+}
+
+// Use the EXACT same navItems as the prototype
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/sports", label: "Sports", icon: Trophy },
@@ -27,13 +34,13 @@ const navItems = [
   { href: "/admin/players", label: "Players", icon: Users },
   { href: "/admin/fixtures", label: "Fixtures", icon: Calendar },
   { href: "/admin/results", label: "Results Board", icon: ClipboardList },
-  { href: "/admin/users", label: "Users", icon: User },
   { href: "/admin/rules", label: "Rules", icon: FileText },
+  { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/logs", label: "Activity Logs", icon: FileText },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ]
 
-export function AdminSidebar() {
+export function AdminSidebar({ admin }: AdminSidebarProps) {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
 
@@ -70,14 +77,26 @@ export function AdminSidebar() {
       <div
         data-sidebar
         className={cn(
-          "fixed md:static inset-y-0 left-0 z-40 flex h-full w-64 flex-col bg-sidebar border-r border-sidebar-border transition-transform duration-300 md:translate-x-0",
-          isOpen ? "translate-x-0" : "-translate-x-full",
+          "fixed md:relative inset-y-0 left-0 z-40 flex flex-col bg-sidebar border-r border-sidebar-border transition-transform duration-300 md:translate-x-0",
+          // Fixed positioning for mobile, static for desktop
+          "h-screen md:h-[calc(100vh-2rem)]", // Full height on mobile, slightly less on desktop if needed
+          "md:min-h-[calc(100vh-2rem)]", // Ensure minimum height on desktop
+          isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
         )}
+        style={{
+          // Force the sidebar to take full viewport height
+          height: '100vh',
+          // Ensure it stays on top of content
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          bottom: 0,
+        }}
       >
         <div className="flex h-16 items-center border-b border-sidebar-border px-6 justify-between">
           <div className="flex items-center">
-            <Trophy className="h-6 w-6 text-sidebar-primary" />
-            <span className="ml-2 text-lg font-semibold text-sidebar-foreground">Fantasy Admin</span>
+            
+            <span className="ml-2 text-lg font-semibold text-sidebar-foreground">Fantasy Admin Portal</span>
           </div>
           <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsOpen(false)}>
             <X className="h-5 w-5" />
@@ -106,6 +125,7 @@ export function AdminSidebar() {
             )
           })}
         </nav>
+        
       </div>
     </>
   )

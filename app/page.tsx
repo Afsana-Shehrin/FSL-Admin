@@ -1,90 +1,99 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Trophy, Loader2, AlertCircle } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { toast } from "sonner"
+import { getSupabase } from "@/lib/supabase/working-client"
+import { useRouter } from "next/navigation"
 
 export default function LoginPage() {
-  const router = useRouter()
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
+  const [email, setEmail] = useState("fantasysports800@gmail.com")
+  const [password, setPassword] = useState("fsl_2383962")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
-  const [showInactiveMessage, setShowInactiveMessage] = useState(false)
-
-  useEffect(() => {
-    const initializeSuperAdmin = () => {
-      const loggedInAdmins = JSON.parse(localStorage.getItem("loggedInAdmins") || "[]")
-      const superAdminEmail = "afsanashehrin@gmail.com"
-      const existingSuperAdmin = loggedInAdmins.find((admin: any) => admin.email === superAdminEmail)
-
-      if (!existingSuperAdmin) {
-        const superAdmin = {
-          id: "super_admin_001",
-          name: "Afsana Shehrin",
-          email: superAdminEmail,
-          role: "Super Admin",
-          status: "active",
-          createdAt: new Date().toISOString(),
-        }
-        loggedInAdmins.push(superAdmin)
-        localStorage.setItem("loggedInAdmins", JSON.stringify(loggedInAdmins))
-      }
-    }
-
-    initializeSuperAdmin()
-  }, [])
+  const router = useRouter()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
-    setShowInactiveMessage(false)
     setIsLoading(true)
 
-    // Simulate authentication
-    setTimeout(() => {
-      if (email && password) {
-        const loggedInAdmins = JSON.parse(localStorage.getItem("loggedInAdmins") || "[]")
-        const existingAdmin = loggedInAdmins.find((admin: any) => admin.email === email)
+    try {
+      const supabase = getSupabase()
+      
+      console.log('🔐 Checking admin credentials...')
+      
+      // 1. Check if user exists in admins table
+      const { data: admin, error: adminError } = await supabase
+        .from('admins')
+        .select('*')
+        .eq('email', email.trim())
+        .single()
 
-        if (existingAdmin && existingAdmin.status === "inactive") {
-          setShowInactiveMessage(true)
-          setIsLoading(false)
-          return
-        }
-
-        localStorage.setItem("adminEmail", email)
-
-        if (!existingAdmin) {
-          const newAdmin = {
-            id: Date.now().toString(),
-            name: "",
-            email: email,
-            role: "Editor",
-            status: "active",
-            lastLogin: new Date().toISOString(),
-          }
-          loggedInAdmins.push(newAdmin)
-          localStorage.setItem("loggedInAdmins", JSON.stringify(loggedInAdmins))
-        } else {
-          // Update last login
-          existingAdmin.lastLogin = new Date().toISOString()
-          localStorage.setItem("loggedInAdmins", JSON.stringify(loggedInAdmins))
-        }
-
-        router.push("/admin")
-      } else {
-        setError("Please enter both email and password")
-        setIsLoading(false)
+      if (adminError || !admin) {
+        throw new Error("Invalid admin credentials")
       }
-    }, 1000)
+
+      console.log('✅ Admin found:', admin.email, 'Role:', admin.role)
+      console.log('🔑 Password hash from DB:', admin.password_hash ? 'Exists' : 'Missing')
+
+      // 2. Check if admin is active
+      if (!admin.is_active) {
+        throw new Error("Account is not active")
+      }
+
+      // 3. IMPORTANT: Update your AdminLayout to look for these localStorage keys
+      localStorage.setItem('admin_logged_in', 'true')
+      localStorage.setItem('admin_email', admin.email)
+      
+      // Keep your custom session data too (optional)
+      const adminSession = {
+        admin_id: admin.admin_id,
+        email: admin.email,
+        username: admin.username,
+        role: admin.role,
+        full_name: admin.full_name,
+        is_active: admin.is_active,
+        loggedInAt: new Date().toISOString()
+      }
+      localStorage.setItem('admin_session', JSON.stringify(adminSession))
+      
+      console.log('✅ LocalStorage set:', {
+        admin_logged_in: localStorage.getItem('admin_logged_in'),
+        admin_email: localStorage.getItem('admin_email')
+      })
+
+      // 4. Update last login time
+      await supabase
+        .from('admins')
+        .update({ 
+          last_login_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('admin_id', admin.admin_id)
+
+      console.log('✅ Login successful!')
+      
+      // Show welcome message
+      const welcomeName = admin.full_name || admin.username || admin.email.split('@')[0]
+      toast.success(`Welcome back, ${welcomeName}!`)
+      
+      // IMPORTANT: Use router.push instead of window.location.href
+      router.push('/admin')
+      router.refresh() // This ensures the layout re-renders with new auth state
+      
+    } catch (error: any) {
+      console.error('Login error:', error)
+      setError(error.message || "Login failed")
+      toast.error(error.message || "Login failed")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -104,47 +113,46 @@ export default function LoginPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {showInactiveMessage && (
+          {error && (
             <Alert variant="destructive" className="mb-4 border-red-900/50 bg-red-950/50">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Access Denied</AlertTitle>
-              <AlertDescription>
-                Your account is currently inactive. Please contact a Super Admin to request access permission.
-              </AlertDescription>
+              <AlertTitle>Login Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-slate-300">
-                Email
-              </Label>
+              <Label htmlFor="email" className="text-slate-300">Email</Label>
               <Input
                 id="email"
                 type="email"
                 placeholder="admin@fantasysports.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500"
+                className="bg-slate-800/50 border-slate-700 text-white"
                 required
+                disabled={isLoading}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-slate-300">
-                Password
-              </Label>
+              <Label htmlFor="password" className="text-slate-300">Password</Label>
               <Input
                 id="password"
                 type="password"
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500"
+                className="bg-slate-800/50 border-slate-700 text-white"
                 required
+                disabled={isLoading}
               />
             </div>
-            {error && <p className="text-sm text-red-400">{error}</p>}
-            <Button type="submit" className="w-full bg-purple-600 hover:bg-purple-700 text-white" disabled={isLoading}>
+            <Button 
+              type="submit" 
+              className="w-full bg-purple-600 hover:bg-purple-700 text-white" 
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -155,8 +163,9 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
-          <div className="mt-6 text-center">
-            <p className="text-sm text-slate-500">Demo credentials: Any email/password combination</p>
+          
+          <div className="mt-6 text-center space-y-2">
+            <p className="text-xs text-slate-500 mt-4">Only approved admins can access</p>
           </div>
         </CardContent>
       </Card>
