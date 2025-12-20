@@ -168,7 +168,7 @@ export default function SettingsPage() {
       console.log("Fetched admins separately:", adminsData)
 
       // Fetch profiles for all admins
-      const adminIds = adminsData.map(admin => admin.admin_id)
+      const adminIds = (adminsData as DatabaseAdmin[]).map((admin: DatabaseAdmin) => admin.admin_id)
       const { data: profilesData, error: profilesError } = await supabase
         .from('admin_profiles')
         .select('*')
