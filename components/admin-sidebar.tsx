@@ -96,7 +96,7 @@ export function AdminSidebar({ admin }: AdminSidebarProps) {
         <div className="flex h-16 items-center border-b border-sidebar-border px-6 justify-between">
           <div className="flex items-center">
             
-            <span className="ml-2 text-lg font-semibold text-sidebar-foreground">Fantasy Admin Portal</span>
+            <span className="ml-2 text-lg font-semibold text-sidebar-foreground">Admin Portal</span>
           </div>
           <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsOpen(false)}>
             <X className="h-5 w-5" />
