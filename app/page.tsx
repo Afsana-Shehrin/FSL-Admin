@@ -12,8 +12,8 @@ import { getSupabase } from "@/lib/supabase/working-client"
 import { useRouter } from "next/navigation"
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("fantasysports800@gmail.com")
-  const [password, setPassword] = useState("fsl_2383962")
+  const [email, setEmail] = useState("") // Changed to empty string
+  const [password, setPassword] = useState("") // Changed to empty string
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const router = useRouter()
@@ -21,6 +21,20 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+    
+    // Validate inputs are not empty
+    if (!email.trim()) {
+      setError("Email is required")
+      toast.error("Email is required")
+      return
+    }
+    
+    if (!password.trim()) {
+      setError("Password is required")
+      toast.error("Password is required")
+      return
+    }
+    
     setIsLoading(true)
 
     try {
@@ -127,7 +141,7 @@ export default function LoginPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="admin@fantasysports.com"
+                placeholder="admin@fantasysports.com" // Placeholder remains
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="bg-slate-800/50 border-slate-700 text-white"
@@ -140,7 +154,7 @@ export default function LoginPage() {
               <Input
                 id="password"
                 type="password"
-                placeholder="Enter your password"
+                placeholder="Enter your password" // Placeholder remains
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="bg-slate-800/50 border-slate-700 text-white"

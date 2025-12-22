@@ -704,8 +704,8 @@ export default function LeaguesTab({ selectedSport }: LeaguesTabProps) {
                   <TableHead>Country</TableHead>
                   <TableHead>Clubs</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Winner</TableHead> {/* New column */}
-                  <TableHead>Active</TableHead>
+                  <TableHead>Winner</TableHead>
+                  <TableHead>Active</TableHead> {/* Single column for active status */}
                   <TableHead>Created</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -804,18 +804,13 @@ export default function LeaguesTab({ selectedSport }: LeaguesTabProps) {
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={league.is_active ? "default" : "secondary"}>
-                            {league.is_active ? "Active" : "Inactive"}
-                          </Badge>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleToggleStatus(league)}
-                            className="h-6 px-2 text-xs"
-                          >
-                            {league.is_active ? "Deactivate" : "Activate"}
-                          </Button>
+                        <div className="flex items-center justify-center">
+                          <Switch
+                            checked={league.is_active}
+                            onCheckedChange={() => handleToggleStatus(league)}
+                            aria-label={`Toggle ${league.league_name} active status`}
+                          />
+                          
                         </div>
                       </TableCell>
                       <TableCell>
