@@ -527,6 +527,7 @@ export default function SportsPage() {
                           {sport.sport_code}
                         </Badge>
                       </TableCell>
+                      <TableCell>{sport.display_order}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Switch 
