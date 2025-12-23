@@ -379,7 +379,7 @@ export default function LeaguesTab({ selectedSport }: LeaguesTabProps) {
 
   const getSportName = (sportId: number) => {
     const sport = sports.find((s) => s.sport_id === sportId)
-    return sport ? `${sport.sport_name} (${sport.sport_code})` : "Unknown"
+    return sport ? `${sport.sport_name}` : "Unknown"
   }
 
   const getTeamName = (teamId: number | null) => {

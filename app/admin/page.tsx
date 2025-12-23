@@ -1,147 +1,199 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Trophy, Users, Calendar, TrendingUp, Lock, Calculator, RefreshCw, Plus } from "lucide-react"
-import { sports, leagues, players, fixtures, gameweeks } from "@/lib/dummy-data"
-import { useToast } from "@/hooks/use-toast"
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Progress } from "@/components/ui/progress"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Trophy, Users, Calendar, TrendingUp, Shield } from "lucide-react"
+import { useState, useEffect } from "react"
+import { createClient } from '@supabase/supabase-js'
+import RecentActivity from "./recent-activity"
+import QuickActions from "./quick-actions"
+import DashboardDialogs from "./dialogs"
+
+// Initialize Supabase client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+interface SportStat {
+  sport_name: string
+  player_count: number
+  team_count: number
+  league_count: number
+}
 
 export default function AdminDashboard() {
-  const { toast } = useToast()
-  const [isProcessing, setIsProcessing] = useState<string | null>(null)
-
-  // Dialog states
   const [lockDialogOpen, setLockDialogOpen] = useState(false)
   const [scoringDialogOpen, setScoringDialogOpen] = useState(false)
   const [statsDialogOpen, setStatsDialogOpen] = useState(false)
   const [addActionDialogOpen, setAddActionDialogOpen] = useState(false)
+  
+  const [isLoading, setIsLoading] = useState(true)
+  const [stats, setStats] = useState({
+    totalSports: 0,
+    activeSports: 0,
+    totalPlayers: 0,
+    playersBySport: [] as SportStat[],
+    totalLeagues: 0,
+    activeLeagues: 0,
+    leaguesBySport: [] as {sport_name: string, count: number}[],
+    totalTeams: 0,
+    teamsBySport: [] as {sport_name: string, count: number}[]
+  })
 
-  // Form states
-  const [selectedGameweek, setSelectedGameweek] = useState("")
-  const [scoringProgress, setScoringProgress] = useState(0)
-  const [scoringLogs, setScoringLogs] = useState<string[]>([])
-  const [statsSource, setStatsSource] = useState("api")
+  useEffect(() => {
+    fetchDashboardStats()
+  }, [])
 
-  const liveGameweeks = gameweeks.filter((gw) => gw.status === "live" && !gw.isLocked)
+  async function fetchDashboardStats() {
+    try {
+      setIsLoading(true)
+      
+      // Fetch all data in parallel
+      const [
+        sportsResponse,
+        playersResponse,
+        leaguesResponse,
+        teamsResponse
+      ] = await Promise.all([
+        supabase.from('sports').select('sport_id, sport_name, is_active'),
+        supabase.from('players').select('sport_id, sports(sport_name), is_active'),
+        supabase.from('leagues').select('sport_id, sports(sport_name), is_active'),
+        supabase.from('teams').select('sport_id, sports(sport_name), is_active')
+      ])
 
-  const handleGameweekLock = async () => {
-    if (!selectedGameweek) {
-      toast({
-        title: "Error",
-        description: "Please select a gameweek to lock",
-        variant: "destructive",
+      const sports = sportsResponse.data || []
+      const players = playersResponse.data || []
+      const leagues = leaguesResponse.data || []
+      const teams = teamsResponse.data || []
+
+      // Process sports
+      const totalSports = sports.length
+      const activeSports = sports.filter((s: { is_active: any }) => s.is_active).length
+
+      // Process players by sport
+      const playerCounts = new Map<string, number>()
+      const activePlayers = players.filter((p: { is_active: any }) => p.is_active)
+      
+      activePlayers.forEach((player: any) => {
+        const sportName = player.sports?.sport_name || 'Unknown'
+        playerCounts.set(sportName, (playerCounts.get(sportName) || 0) + 1)
       })
-      return
-    }
 
-    setIsProcessing("lock")
+      const totalPlayers = activePlayers.length
+      const playersBySport = Array.from(playerCounts.entries()).map(([sport_name, player_count]) => ({
+        sport_name,
+        player_count,
+        team_count: 0,
+        league_count: 0
+      }))
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-
-    const gameweekData = gameweeks.find((gw) => gw.id === selectedGameweek)
-    if (gameweekData) {
-      gameweekData.isLocked = true
-    }
-
-    toast({
-      title: "Gameweek Locked",
-      description: `${gameweekData?.name} has been locked. Team changes are now disabled.`,
-    })
-
-    setIsProcessing(null)
-    setLockDialogOpen(false)
-    setSelectedGameweek("")
-
-    window.location.reload()
-  }
-
-  const handleScoringCalculation = async () => {
-    setScoringProgress(0)
-    setScoringLogs([])
-    setIsProcessing("scoring")
-
-    const logs = [
-      "Initializing scoring calculation...",
-      "Fetching completed fixtures...",
-      "Processing player statistics...",
-      "Calculating fantasy points...",
-      "Updating leaderboards...",
-      "Finalizing results...",
-    ]
-
-    for (let i = 0; i < logs.length; i++) {
-      setScoringLogs((prev) => [...prev, logs[i]])
-      setScoringProgress((i + 1) * (100 / logs.length))
-      await new Promise((resolve) => setTimeout(resolve, 800))
-    }
-
-    toast({
-      title: "Scoring Calculation Complete",
-      description: "Points calculated for 127 players across 12 fixtures.",
-    })
-
-    setIsProcessing(null)
-  }
-
-  const handlePlayerStatsUpdate = async () => {
-    if (!statsSource) {
-      toast({
-        title: "Error",
-        description: "Please select a data source",
-        variant: "destructive",
+      // Process leagues by sport
+      const leagueCounts = new Map<string, {total: number, active: number}>()
+      
+      leagues.forEach((league: any) => {
+        const sportName = league.sports?.sport_name || 'Unknown'
+        const current = leagueCounts.get(sportName) || {total: 0, active: 0}
+        current.total++
+        if (league.is_active) current.active++
+        leagueCounts.set(sportName, current)
       })
-      return
+
+      const totalLeagues = leagues.length
+      const activeLeagues = leagues.filter((l: { is_active: any }) => l.is_active).length
+      const leaguesBySport = Array.from(leagueCounts.entries()).map(([sport_name, counts]) => ({
+        sport_name,
+        count: counts.total
+      }))
+
+      // Process teams by sport
+      const teamCounts = new Map<string, number>()
+      const activeTeams = teams.filter((t: { is_active: any }) => t.is_active)
+      
+      activeTeams.forEach((team: any) => {
+        const sportName = team.sports?.sport_name || 'Unknown'
+        teamCounts.set(sportName, (teamCounts.get(sportName) || 0) + 1)
+      })
+
+      const totalTeams = activeTeams.length
+      const teamsBySport = Array.from(teamCounts.entries()).map(([sport_name, count]) => ({
+        sport_name,
+        count
+      }))
+
+      // Merge all sport data
+      const allSportNames = new Set([
+        ...playersBySport.map(p => p.sport_name),
+        ...teamsBySport.map(t => t.sport_name),
+        ...leaguesBySport.map(l => l.sport_name)
+      ])
+
+      const sportStats = Array.from(allSportNames).map(sport_name => {
+        const playerStat = playersBySport.find(p => p.sport_name === sport_name)
+        const teamStat = teamsBySport.find(t => t.sport_name === sport_name)
+        const leagueStat = leaguesBySport.find(l => l.sport_name === sport_name)
+        return {
+          sport_name,
+          player_count: playerStat?.player_count || 0,
+          team_count: teamStat?.count || 0,
+          league_count: leagueStat?.count || 0
+        }
+      }).filter(stat => stat.player_count > 0 || stat.team_count > 0 || stat.league_count > 0)
+
+      setStats({
+        totalSports,
+        activeSports,
+        totalPlayers,
+        playersBySport: sportStats,
+        totalLeagues,
+        activeLeagues,
+        leaguesBySport,
+        totalTeams,
+        teamsBySport
+      })
+
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error)
+    } finally {
+      setIsLoading(false)
     }
-
-    setIsProcessing("stats")
-
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1800))
-
-    toast({
-      title: "Player Stats Updated",
-      description: `Successfully synced ${players.length} players from ${statsSource === "api" ? "API" : "manual input"}.`,
-    })
-
-    setIsProcessing(null)
-    setStatsDialogOpen(false)
-    setStatsSource("api")
   }
 
-  const stats = [
+  const statsCards = [
     {
       title: "Active Sports",
-      value: sports.filter((s) => s.isActive).length,
+      value: isLoading ? "..." : `${stats.activeSports}/${stats.totalSports}`,
       icon: Trophy,
+      details: stats.playersBySport.map(sport => ({
+        label: sport.sport_name,
+        value: ` ${sport.league_count} leagues, ${sport.team_count} teams`
+      }))
     },
     {
       title: "Total Players",
-      value: players.length,
+      value: isLoading ? "..." : stats.totalPlayers.toString(),
       icon: Users,
+      details: stats.playersBySport.map(sport => ({
+        label: sport.sport_name,
+        value: `${sport.player_count} players`
+      }))
     },
     {
       title: "Active Leagues",
-      value: leagues.filter((l) => l.isActive).length,
+      value: isLoading ? "..." : `${stats.activeLeagues}/${stats.totalLeagues}`,
       icon: TrendingUp,
+      details: [
+        { label: "Total Sports", value: stats.totalSports.toString() },
+        { label: "Active Sports", value: stats.activeSports.toString() },
+        { label: "Total Teams", value: stats.totalTeams.toString() }
+      ]
     },
     {
-      title: "Upcoming Fixtures",
-      value: fixtures.filter((f) => f.status === "scheduled").length,
-      icon: Calendar,
+      title: "Total Teams",
+      value: isLoading ? "..." : stats.totalTeams.toString(),
+      icon: Shield,
+      details: stats.teamsBySport.map(sport => ({
+        label: sport.sport_name,
+        value: `${sport.count} teams`
+      }))
     },
   ]
 
@@ -153,16 +205,24 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => {
+        {statsCards.map((stat) => {
           const Icon = stat.icon
           return (
             <Card key={stat.title}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-                <Icon className="h-4 w-4 text-muted-foreground" />
+               
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stat.value}</div>
+                <div className="mt-2 space-y-1">
+                  {stat.details.map((detail, index) => (
+                    <div key={index} className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">{detail.label}:</span>
+                      <span className="font-medium">{detail.value}</span>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           )
@@ -170,295 +230,25 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-start gap-4">
-                <div className="h-2 w-2 mt-2 rounded-full bg-primary" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Player added</p>
-                  <p className="text-xs text-muted-foreground">Mohamed Salah added to Liverpool</p>
-                  <p className="text-xs text-muted-foreground">2 hours ago</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-4">
-                <div className="h-2 w-2 mt-2 rounded-full bg-primary" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Fixture updated</p>
-                  <p className="text-xs text-muted-foreground">MUN vs LIV - Status changed to live</p>
-                  <p className="text-xs text-muted-foreground">4 hours ago</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-4">
-                <div className="h-2 w-2 mt-2 rounded-full bg-primary" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Gameweek created</p>
-                  <p className="text-xs text-muted-foreground">Gameweek 3 created for EPL</p>
-                  <p className="text-xs text-muted-foreground">1 day ago</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Quick Actions</CardTitle>
-            <Button size="sm" variant="outline" onClick={() => setAddActionDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-1" />
-              Add More
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <button
-                onClick={() => setLockDialogOpen(true)}
-                disabled={isProcessing !== null}
-                className="w-full text-left px-4 py-3 rounded-md bg-secondary hover:bg-secondary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <div className="flex items-center gap-2">
-                  <Lock className="h-4 w-4" />
-                  <p className="font-medium">Trigger Gameweek Lock</p>
-                </div>
-                <p className="text-sm text-muted-foreground mt-1">Lock current gameweek for team changes</p>
-              </button>
-
-              <button
-                onClick={() => setScoringDialogOpen(true)}
-                disabled={isProcessing !== null}
-                className="w-full text-left px-4 py-3 rounded-md bg-secondary hover:bg-secondary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <div className="flex items-center gap-2">
-                  <Calculator className="h-4 w-4" />
-                  <p className="font-medium">Run Scoring Calculation</p>
-                </div>
-                <p className="text-sm text-muted-foreground mt-1">Calculate points for completed fixtures</p>
-              </button>
-
-              <button
-                onClick={() => setStatsDialogOpen(true)}
-                disabled={isProcessing !== null}
-                className="w-full text-left px-4 py-3 rounded-md bg-secondary hover:bg-secondary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <div className="flex items-center gap-2">
-                  <RefreshCw className="h-4 w-4" />
-                  <p className="font-medium">Update Player Stats</p>
-                </div>
-                <p className="text-sm text-muted-foreground mt-1">Sync latest player statistics</p>
-              </button>
-            </div>
-          </CardContent>
-        </Card>
+        <RecentActivity />
+        <QuickActions
+          onLock={() => setLockDialogOpen(true)}
+          onScoring={() => setScoringDialogOpen(true)}
+          onStats={() => setStatsDialogOpen(true)}
+          onAddAction={() => setAddActionDialogOpen(true)}
+        />
       </div>
 
-      <Dialog open={lockDialogOpen} onOpenChange={setLockDialogOpen}>
-        <DialogContent className="w-[95vw] max-w-md">
-          <DialogHeader>
-            <DialogTitle>Trigger Gameweek Lock</DialogTitle>
-            <DialogDescription>
-              Select a live gameweek to lock. This will prevent users from making any team changes.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="gameweek">Select Gameweek</Label>
-              {liveGameweeks.length > 0 ? (
-                <Select value={selectedGameweek} onValueChange={setSelectedGameweek}>
-                  <SelectTrigger id="gameweek">
-                    <SelectValue placeholder="Choose live gameweek..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {liveGameweeks.map((gw) => (
-                      <SelectItem key={gw.id} value={gw.id}>
-                        {gw.name} - {gw.status.toUpperCase()}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <div className="text-sm text-muted-foreground py-4 text-center border rounded-md">
-                  No live gameweeks available to lock
-                </div>
-              )}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setLockDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleGameweekLock} disabled={isProcessing === "lock" || liveGameweeks.length === 0}>
-              {isProcessing === "lock" ? "Locking..." : "Confirm Lock"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={scoringDialogOpen} onOpenChange={setScoringDialogOpen}>
-        <DialogContent className="w-[95vw] max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Run Scoring Calculation</DialogTitle>
-            <DialogDescription>
-              Calculate fantasy points for all completed fixtures and update player scores.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            {isProcessing === "scoring" ? (
-              <>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span>Processing...</span>
-                    <span className="font-medium">{Math.round(scoringProgress)}%</span>
-                  </div>
-                  <Progress value={scoringProgress} />
-                </div>
-                <div className="bg-secondary rounded-md p-4 max-h-48 overflow-y-auto">
-                  <div className="space-y-1 font-mono text-xs">
-                    {scoringLogs.map((log, i) => (
-                      <div key={i} className="text-muted-foreground">
-                        <span className="text-primary mr-2">›</span>
-                        {log}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            ) : scoringProgress === 100 ? (
-              <div className="space-y-3">
-                <div className="bg-primary/10 border border-primary/20 rounded-md p-4">
-                  <h4 className="font-semibold mb-2">Summary</h4>
-                  <div className="space-y-1 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Fixtures Processed:</span>
-                      <span className="font-medium">12</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Players Updated:</span>
-                      <span className="font-medium">127</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Total Points Awarded:</span>
-                      <span className="font-medium">8,452</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                Click "Start Calculation" to begin processing scores
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setScoringDialogOpen(false)
-                setScoringProgress(0)
-                setScoringLogs([])
-              }}
-            >
-              {scoringProgress === 100 ? "Close" : "Cancel"}
-            </Button>
-            {scoringProgress !== 100 && (
-              <Button onClick={handleScoringCalculation} disabled={isProcessing === "scoring"}>
-                {isProcessing === "scoring" ? "Processing..." : "Start Calculation"}
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={statsDialogOpen} onOpenChange={setStatsDialogOpen}>
-        <DialogContent className="w-[95vw] max-w-md">
-          <DialogHeader>
-            <DialogTitle>Update Player Stats</DialogTitle>
-            <DialogDescription>Choose the source for player statistics synchronization.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-3">
-              <Label>Data Source</Label>
-              <RadioGroup value={statsSource} onValueChange={setStatsSource}>
-                <div className="flex items-start space-x-3 space-y-0 rounded-md border p-4 hover:bg-secondary/50 transition-colors">
-                  <RadioGroupItem value="api" id="api" />
-                  <div className="flex-1">
-                    <Label htmlFor="api" className="font-medium cursor-pointer">
-                      External API
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      Automatically fetch latest statistics from third-party sports data providers
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3 space-y-0 rounded-md border p-4 hover:bg-secondary/50 transition-colors">
-                  <RadioGroupItem value="manual" id="manual" />
-                  <div className="flex-1">
-                    <Label htmlFor="manual" className="font-medium cursor-pointer">
-                      Manual Input
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      Use manually entered statistics from your database or CSV import
-                    </p>
-                  </div>
-                </div>
-              </RadioGroup>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setStatsDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handlePlayerStatsUpdate} disabled={isProcessing === "stats"}>
-              {isProcessing === "stats" ? "Syncing..." : "Confirm Sync"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={addActionDialogOpen} onOpenChange={setAddActionDialogOpen}>
-        <DialogContent className="w-[95vw] max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add Quick Action</DialogTitle>
-            <DialogDescription>Create a new quick action button for frequently used operations.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="action-name">Action Name</Label>
-              <input
-                id="action-name"
-                placeholder="e.g., Reset Player Prices"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="action-desc">Description</Label>
-              <input
-                id="action-desc"
-                placeholder="Brief description of what this action does"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddActionDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                toast({
-                  title: "Quick Action Added",
-                  description: "New action has been added to your dashboard.",
-                })
-                setAddActionDialogOpen(false)
-              }}
-            >
-              Add Action
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DashboardDialogs
+        lockDialogOpen={lockDialogOpen}
+        setLockDialogOpen={setLockDialogOpen}
+        scoringDialogOpen={scoringDialogOpen}
+        setScoringDialogOpen={setScoringDialogOpen}
+        statsDialogOpen={statsDialogOpen}
+        setStatsDialogOpen={setStatsDialogOpen}
+        addActionDialogOpen={addActionDialogOpen}
+        setAddActionDialogOpen={setAddActionDialogOpen}
+      />
     </div>
   )
 }
