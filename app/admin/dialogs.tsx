@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useToast } from "@/hooks/use-toast"
-import { gameweeks, players } from "@/lib/dummy-data"
+import { createClient } from '@supabase/supabase-js'
 import {
   Dialog,
   DialogContent,
@@ -14,342 +14,471 @@ import {
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Progress } from "@/components/ui/progress"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Badge } from "@/components/ui/badge"
+import { Lock, Unlock, CheckCircle, XCircle } from "lucide-react"
+
+// Initialize Supabase client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+interface Gameweek {
+  gameweek_id: number
+  gameweek_number: number
+  gameweek_name: string
+  deadline_time: string
+  start_date: string
+  end_date: string
+  is_current: boolean
+  is_finished: boolean // This is used as lock status
+  season: {
+    season_name: string
+    league: {
+      league_name: string
+      sport: {
+        sport_name: string
+      }
+    }
+  }
+}
 
 interface DashboardDialogsProps {
   lockDialogOpen: boolean
   setLockDialogOpen: (open: boolean) => void
-  scoringDialogOpen: boolean
-  setScoringDialogOpen: (open: boolean) => void
-  statsDialogOpen: boolean
-  setStatsDialogOpen: (open: boolean) => void
-  addActionDialogOpen: boolean
-  setAddActionDialogOpen: (open: boolean) => void
 }
 
 export default function DashboardDialogs({
   lockDialogOpen,
   setLockDialogOpen,
-  scoringDialogOpen,
-  setScoringDialogOpen,
-  statsDialogOpen,
-  setStatsDialogOpen,
-  addActionDialogOpen,
-  setAddActionDialogOpen,
 }: DashboardDialogsProps) {
   const { toast } = useToast()
   
-  // Lock Dialog States
-  const [selectedGameweek, setSelectedGameweek] = useState("")
-  const [isLockProcessing, setIsLockProcessing] = useState(false)
-  
-  // Scoring Dialog States
-  const [scoringProgress, setScoringProgress] = useState(0)
-  const [scoringLogs, setScoringLogs] = useState<string[]>([])
-  const [isScoringProcessing, setIsScoringProcessing] = useState(false)
-  
-  // Stats Dialog States
-  const [statsSource, setStatsSource] = useState("api")
-  const [isStatsProcessing, setIsStatsProcessing] = useState(false)
+  const [gameweeks, setGameweeks] = useState<Gameweek[]>([])
+  const [selectedGameweek, setSelectedGameweek] = useState<string>("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [isFetching, setIsFetching] = useState(true)
 
-  const liveGameweeks = gameweeks.filter((gw) => gw.status === "live" && !gw.isLocked)
+  useEffect(() => {
+    if (lockDialogOpen) {
+      fetchCurrentGameweeks()
+    }
+  }, [lockDialogOpen])
+
+  async function fetchCurrentGameweeks() {
+    try {
+      setIsFetching(true)
+      
+      // Fetch ONLY current gameweeks (is_current = true)
+      const { data: gameweeksData, error: gameweeksError } = await supabase
+        .from('gameweeks')
+        .select('*')
+        .eq('is_current', true) // Only fetch current gameweeks
+        .order('deadline_time', { ascending: true })
+
+      if (gameweeksError) throw gameweeksError
+
+      if (!gameweeksData || gameweeksData.length === 0) {
+        setGameweeks([])
+        return
+      }
+
+      // For each gameweek, fetch season/league/sport info
+      const gameweeksWithDetails = await Promise.all(
+        gameweeksData.map(async (gameweek: any) => {
+          // Fetch season
+          const { data: seasonData } = await supabase
+            .from('seasons')
+            .select('season_name, league_id')
+            .eq('season_id', gameweek.season_id)
+            .single()
+
+          let leagueName = 'Unknown League'
+          let sportName = 'Unknown Sport'
+          
+          if (seasonData) {
+            // Fetch league
+            const { data: leagueData } = await supabase
+              .from('leagues')
+              .select('league_name, sport_id')
+              .eq('league_id', seasonData.league_id)
+              .single()
+
+            if (leagueData) {
+              leagueName = leagueData.league_name
+              
+              // Fetch sport
+              const { data: sportData } = await supabase
+                .from('sports')
+                .select('sport_name')
+                .eq('sport_id', leagueData.sport_id)
+                .single()
+
+              if (sportData) {
+                sportName = sportData.sport_name
+              }
+            }
+          }
+
+          return {
+            gameweek_id: gameweek.gameweek_id,
+            gameweek_number: gameweek.gameweek_number,
+            gameweek_name: gameweek.gameweek_name,
+            deadline_time: gameweek.deadline_time,
+            start_date: gameweek.start_date,
+            end_date: gameweek.end_date,
+            is_current: gameweek.is_current,
+            is_finished: gameweek.is_finished, // Using this as lock status
+            season: {
+              season_name: seasonData?.season_name || 'Unknown Season',
+              league: {
+                league_name: leagueName,
+                sport: {
+                  sport_name: sportName
+                }
+              }
+            }
+          }
+        })
+      )
+
+      setGameweeks(gameweeksWithDetails)
+      
+      if (gameweeksWithDetails.length > 0 && !selectedGameweek) {
+        setSelectedGameweek(gameweeksWithDetails[0].gameweek_id.toString())
+      }
+
+    } catch (error) {
+      console.error('Error fetching gameweeks:', error)
+      toast({
+        title: "Error",
+        description: "Failed to fetch current gameweeks",
+        variant: "destructive",
+      })
+    } finally {
+      setIsFetching(false)
+    }
+  }
+
+  const handleGameweekCurrentToggle = async () => {
+    if (!selectedGameweek) {
+      toast({
+        title: "Error",
+        description: "Please select a gameweek",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const gameweekId = parseInt(selectedGameweek)
+    const selectedGameweekData = gameweeks.find(gw => gw.gameweek_id === gameweekId)
+    
+    if (!selectedGameweekData) {
+      toast({
+        title: "Error",
+        description: "Gameweek not found",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      const newCurrentStatus = !selectedGameweekData.is_current
+
+      // Update the gameweek current status
+      const { error: updateError } = await supabase
+        .from('gameweeks')
+        .update({ is_current: newCurrentStatus })
+        .eq('gameweek_id', gameweekId)
+
+      if (updateError) throw updateError
+
+      // Update local state
+      setGameweeks(prev => prev.map(gw => 
+        gw.gameweek_id === gameweekId 
+          ? { ...gw, is_current: newCurrentStatus }
+          : gw
+      ))
+
+      toast({
+        title: newCurrentStatus ? "Gameweek Set as Current" : "Gameweek Removed from Current",
+        description: `${selectedGameweekData.gameweek_name || `Gameweek ${selectedGameweekData.gameweek_number}`} is ${newCurrentStatus ? 'now the current gameweek' : 'no longer current'}.`,
+      })
+
+      // Refresh the list - after removing from current, it won't show in the list
+      fetchCurrentGameweeks()
+
+    } catch (error) {
+      console.error('Error updating gameweek current status:', error)
+      toast({
+        title: "Error",
+        description: "Failed to update gameweek current status",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const handleGameweekLock = async () => {
     if (!selectedGameweek) {
       toast({
         title: "Error",
-        description: "Please select a gameweek to lock",
+        description: "Please select a gameweek",
         variant: "destructive",
       })
       return
     }
 
-    setIsLockProcessing(true)
-
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-
-    const gameweekData = gameweeks.find((gw) => gw.id === selectedGameweek)
-    if (gameweekData) {
-      gameweekData.isLocked = true
-    }
-
-    toast({
-      title: "Gameweek Locked",
-      description: `${gameweekData?.name} has been locked. Team changes are now disabled.`,
-    })
-
-    setIsLockProcessing(false)
-    setLockDialogOpen(false)
-    setSelectedGameweek("")
-
-    window.location.reload()
-  }
-
-  const handleScoringCalculation = async () => {
-    setScoringProgress(0)
-    setScoringLogs([])
-    setIsScoringProcessing(true)
-
-    const logs = [
-      "Initializing scoring calculation...",
-      "Fetching completed fixtures...",
-      "Processing player statistics...",
-      "Calculating fantasy points...",
-      "Updating leaderboards...",
-      "Finalizing results...",
-    ]
-
-    for (let i = 0; i < logs.length; i++) {
-      setScoringLogs((prev) => [...prev, logs[i]])
-      setScoringProgress((i + 1) * (100 / logs.length))
-      await new Promise((resolve) => setTimeout(resolve, 800))
-    }
-
-    toast({
-      title: "Scoring Calculation Complete",
-      description: "Points calculated for 127 players across 12 fixtures.",
-    })
-
-    setIsScoringProcessing(false)
-  }
-
-  const handlePlayerStatsUpdate = async () => {
-    if (!statsSource) {
+    const gameweekId = parseInt(selectedGameweek)
+    const selectedGameweekData = gameweeks.find(gw => gw.gameweek_id === gameweekId)
+    
+    if (!selectedGameweekData) {
       toast({
         title: "Error",
-        description: "Please select a data source",
+        description: "Gameweek not found",
         variant: "destructive",
       })
       return
     }
 
-    setIsStatsProcessing(true)
+    setIsLoading(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1800))
+    try {
+      const isFinished = selectedGameweekData.is_finished
+      const newLockStatus = !isFinished
 
-    toast({
-      title: "Player Stats Updated",
-      description: `Successfully synced ${players.length} players from ${statsSource === "api" ? "API" : "manual input"}.`,
-    })
+      // Update the gameweek lock status using is_finished field
+      const { error: updateError } = await supabase
+        .from('gameweeks')
+        .update({ is_finished: newLockStatus })
+        .eq('gameweek_id', gameweekId)
 
-    setIsStatsProcessing(false)
-    setStatsDialogOpen(false)
-    setStatsSource("api")
+      if (updateError) throw updateError
+
+      // Update local state
+      setGameweeks(prev => prev.map(gw => 
+        gw.gameweek_id === gameweekId 
+          ? { ...gw, is_finished: newLockStatus }
+          : gw
+      ))
+
+      toast({
+        title: newLockStatus ? "Gameweek Locked" : "Gameweek Unlocked",
+        description: `${selectedGameweekData.gameweek_name || `Gameweek ${selectedGameweekData.gameweek_number}`} has been ${newLockStatus ? 'locked' : 'unlocked'}. Team changes are now ${newLockStatus ? 'disabled' : 'enabled'}.`,
+      })
+
+      // Refresh the list
+      fetchCurrentGameweeks()
+
+    } catch (error) {
+      console.error('Error updating gameweek lock status:', error)
+      toast({
+        title: "Error",
+        description: "Failed to update gameweek lock status",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const handleAddAction = () => {
-    toast({
-      title: "Quick Action Added",
-      description: "New action has been added to your dashboard.",
+  function formatDateTime(dateString: string) {
+    const date = new Date(dateString)
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     })
-    setAddActionDialogOpen(false)
   }
+
+  function formatDate(dateString: string) {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    })
+  }
+
+  const selectedGameweekData = gameweeks.find(gw => gw.gameweek_id.toString() === selectedGameweek)
 
   return (
     <>
-      {/* Lock Dialog */}
       <Dialog open={lockDialogOpen} onOpenChange={setLockDialogOpen}>
         <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader>
-            <DialogTitle>Trigger Gameweek Lock</DialogTitle>
+            <DialogTitle>Manage Current Gameweeks</DialogTitle>
             <DialogDescription>
-              Select a live gameweek to lock. This will prevent users from making any team changes.
+              Manage current gameweeks - remove from current or lock/unlock.
             </DialogDescription>
           </DialogHeader>
+          
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="gameweek">Select Gameweek</Label>
-              {liveGameweeks.length > 0 ? (
-                <Select value={selectedGameweek} onValueChange={setSelectedGameweek}>
-                  <SelectTrigger id="gameweek">
-                    <SelectValue placeholder="Choose live gameweek..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {liveGameweeks.map((gw) => (
-                      <SelectItem key={gw.id} value={gw.id}>
-                        {gw.name} - {gw.status.toUpperCase()}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <div className="text-sm text-muted-foreground py-4 text-center border rounded-md">
-                  No live gameweeks available to lock
+            {isFetching ? (
+              <div className="space-y-3">
+                <div className="h-4 w-32 bg-gray-200 rounded animate-pulse"></div>
+                <div className="h-10 w-full bg-gray-200 rounded animate-pulse"></div>
+                <div className="space-y-2">
+                  <div className="h-3 w-full bg-gray-200 rounded animate-pulse"></div>
+                  <div className="h-3 w-3/4 bg-gray-200 rounded animate-pulse"></div>
                 </div>
-              )}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setLockDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleGameweekLock} disabled={isLockProcessing || liveGameweeks.length === 0}>
-              {isLockProcessing ? "Locking..." : "Confirm Lock"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Scoring Dialog */}
-      <Dialog open={scoringDialogOpen} onOpenChange={setScoringDialogOpen}>
-        <DialogContent className="w-[95vw] max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Run Scoring Calculation</DialogTitle>
-            <DialogDescription>
-              Calculate fantasy points for all completed fixtures and update player scores.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            {isScoringProcessing ? (
+              </div>
+            ) : gameweeks.length > 0 ? (
               <>
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span>Processing...</span>
-                    <span className="font-medium">{Math.round(scoringProgress)}%</span>
-                  </div>
-                  <Progress value={scoringProgress} />
+                  <Label htmlFor="gameweek">Select Gameweek</Label>
+                  <Select value={selectedGameweek} onValueChange={setSelectedGameweek}>
+                    <SelectTrigger id="gameweek">
+                      <SelectValue placeholder="Choose gameweek..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {gameweeks.map((gameweek) => (
+                        <SelectItem key={gameweek.gameweek_id} value={gameweek.gameweek_id.toString()}>
+                          <div className="flex items-center gap-2">
+                            <span>{gameweek.gameweek_name || `Gameweek ${gameweek.gameweek_number}`}</span>
+                            <Badge variant="default" className="h-5 text-xs bg-blue-600">
+                              Current
+                            </Badge>
+                            {gameweek.is_finished ? (
+                              <Badge variant="destructive" className="h-5 text-xs">
+                                <Lock className="h-3 w-3 mr-1" />
+                                Locked
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="h-5 text-xs">
+                                <Unlock className="h-3 w-3 mr-1" />
+                                Unlocked
+                              </Badge>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="bg-secondary rounded-md p-4 max-h-48 overflow-y-auto">
-                  <div className="space-y-1 font-mono text-xs">
-                    {scoringLogs.map((log, i) => (
-                      <div key={i} className="text-muted-foreground">
-                        <span className="text-primary mr-2">›</span>
-                        {log}
+
+                {selectedGameweekData && (
+                  <div className="space-y-3 p-3 border rounded-md bg-secondary/50">
+                    <div className="space-y-1">
+                      <h4 className="font-medium text-sm">
+                        {selectedGameweekData.gameweek_name || `Gameweek ${selectedGameweekData.gameweek_number}`}
+                      </h4>
+                      <div className="text-xs text-muted-foreground space-y-1">
+                        <div className="flex items-center gap-1">
+                          <span>Sport:</span>
+                          <span className="font-medium">{selectedGameweekData.season.league.sport.sport_name}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span>League:</span>
+                          <span className="font-medium">{selectedGameweekData.season.league.league_name}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span>Season:</span>
+                          <span className="font-medium">{selectedGameweekData.season.season_name}</span>
+                        </div>
                       </div>
-                    ))}
+                    </div>
+                    
+                    <div className="pt-2 border-t space-y-2">
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="text-muted-foreground">Start:</span>
+                          <div className="font-medium">{formatDate(selectedGameweekData.start_date)}</div>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">End:</span>
+                          <div className="font-medium">{formatDate(selectedGameweekData.end_date)}</div>
+                        </div>
+                      </div>
+                      <div className="text-xs">
+                        <span className="text-muted-foreground">Deadline:</span>
+                        <div className="font-medium">{formatDateTime(selectedGameweekData.deadline_time)}</div>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">Current Status:</span>
+                        <Badge variant="default" className="h-6 text-xs bg-blue-600">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Currently Active
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">Lock Status:</span>
+                        {selectedGameweekData.is_finished ? (
+                          <Badge variant="destructive" className="h-6 text-xs">
+                            <Lock className="h-3 w-3 mr-1" />
+                            Currently Locked
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="h-6 text-xs">
+                            <Unlock className="h-3 w-3 mr-1" />
+                            Currently Unlocked
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
               </>
-            ) : scoringProgress === 100 ? (
-              <div className="space-y-3">
-                <div className="bg-primary/10 border border-primary/20 rounded-md p-4">
-                  <h4 className="font-semibold mb-2">Summary</h4>
-                  <div className="space-y-1 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Fixtures Processed:</span>
-                      <span className="font-medium">12</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Players Updated:</span>
-                      <span className="font-medium">127</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Total Points Awarded:</span>
-                      <span className="font-medium">8,452</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
             ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                Click "Start Calculation" to begin processing scores
+              <div className="text-center py-6 text-muted-foreground">
+                <p>No current gameweeks found.</p>
+                <p className="text-xs mt-1">Mark gameweeks as current in your database first.</p>
               </div>
             )}
           </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setScoringDialogOpen(false)
-                if (scoringProgress !== 100) {
-                  setScoringProgress(0)
-                  setScoringLogs([])
-                }
-              }}
+          
+          <DialogFooter className="flex flex-col sm:flex-row gap-3">
+            <Button 
+              variant="outline" 
+              onClick={() => setLockDialogOpen(false)}
+              className="w-full sm:w-auto"
             >
-              {scoringProgress === 100 ? "Close" : "Cancel"}
+              Cancel
             </Button>
-            {scoringProgress !== 100 && (
-              <Button onClick={handleScoringCalculation} disabled={isScoringProcessing}>
-                {isScoringProcessing ? "Processing..." : "Start Calculation"}
-              </Button>
+            
+            {gameweeks.length > 0 && selectedGameweek && (
+              <>
+                <Button 
+                  onClick={handleGameweekCurrentToggle} 
+                  disabled={isLoading}
+                  variant="default"
+                  className="w-full sm:w-auto bg-yellow-600 hover:bg-yellow-700 text-white"
+                >
+                  {isLoading ? "Processing..." : (
+                    <>
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Remove from Current
+                    </>
+                  )}
+                </Button>
+                
+                <Button 
+                  onClick={handleGameweekLock} 
+                  disabled={isLoading}
+                  variant={selectedGameweekData?.is_finished ? "outline" : "default"}
+                  className={`w-full sm:w-auto ${selectedGameweekData?.is_finished ? "bg-green-600 hover:bg-green-700 text-white" : ""}`}
+                >
+                  {isLoading ? "Processing..." : selectedGameweekData?.is_finished ? (
+                    <>
+                      <Unlock className="h-4 w-4 mr-2" />
+                      Unlock Gameweek
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="h-4 w-4 mr-2" />
+                      Lock Gameweek
+                    </>
+                  )}
+                </Button>
+              </>
             )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Stats Dialog */}
-      <Dialog open={statsDialogOpen} onOpenChange={setStatsDialogOpen}>
-        <DialogContent className="w-[95vw] max-w-md">
-          <DialogHeader>
-            <DialogTitle>Update Player Stats</DialogTitle>
-            <DialogDescription>Choose the source for player statistics synchronization.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-3">
-              <Label>Data Source</Label>
-              <RadioGroup value={statsSource} onValueChange={setStatsSource}>
-                <div className="flex items-start space-x-3 space-y-0 rounded-md border p-4 hover:bg-secondary/50 transition-colors">
-                  <RadioGroupItem value="api" id="api" />
-                  <div className="flex-1">
-                    <Label htmlFor="api" className="font-medium cursor-pointer">
-                      External API
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      Automatically fetch latest statistics from third-party sports data providers
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3 space-y-0 rounded-md border p-4 hover:bg-secondary/50 transition-colors">
-                  <RadioGroupItem value="manual" id="manual" />
-                  <div className="flex-1">
-                    <Label htmlFor="manual" className="font-medium cursor-pointer">
-                      Manual Input
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      Use manually entered statistics from your database or CSV import
-                    </p>
-                  </div>
-                </div>
-              </RadioGroup>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setStatsDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handlePlayerStatsUpdate} disabled={isStatsProcessing}>
-              {isStatsProcessing ? "Syncing..." : "Confirm Sync"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add Action Dialog */}
-      <Dialog open={addActionDialogOpen} onOpenChange={setAddActionDialogOpen}>
-        <DialogContent className="w-[95vw] max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add Quick Action</DialogTitle>
-            <DialogDescription>Create a new quick action button for frequently used operations.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="action-name">Action Name</Label>
-              <input
-                id="action-name"
-                placeholder="e.g., Reset Player Prices"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="action-desc">Description</Label>
-              <input
-                id="action-desc"
-                placeholder="Brief description of what this action does"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddActionDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleAddAction}>
-              Add Action
-            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -78,6 +78,31 @@ type League = {
   created_at: string
 }
 
+// Gameweek type options
+type GameweekType = 'Matchday' | 'Matchweek' | 'Gameday' | 'Gameweek';
+const GAMEWEEK_TYPES: GameweekType[] = ['Matchday', 'Matchweek', 'Gameday', 'Gameweek'];
+const GAMEWEEK_SHORT_FORMS: Record<GameweekType, string> = {
+  'Matchday': 'MD',
+  'Matchweek': 'MW',
+  'Gameday': 'GD',
+  'Gameweek': 'GW'
+};
+
+// Get default gameweek type based on sport
+const getDefaultGameweekType = (sportCode: string): GameweekType => {
+  if (sportCode.toLowerCase().includes('cricket')) {
+    return 'Matchday';
+  } else if (sportCode.toLowerCase().includes('football') || sportCode.toLowerCase().includes('soccer')) {
+    return 'Gameweek';
+  } else if (sportCode.toLowerCase().includes('basketball')) {
+    return 'Gameweek';
+  } else if (sportCode.toLowerCase().includes('baseball')) {
+    return 'Gameday';
+  } else {
+    return 'Gameweek';
+  }
+};
+
 export default function GameweeksTab() {
   const [gameweeks, setGameweeks] = useState<Gameweek[]>([])
   const [seasons, setSeasons] = useState<Season[]>([])
@@ -94,8 +119,9 @@ export default function GameweeksTab() {
 
   const [gameweekFormData, setGameweekFormData] = useState({
     season_id: "",
-    gameweek_name: "",
+    gameweek_type: "Gameweek" as GameweekType,
     gameweek_number: 0,
+    gameweek_name: "",
     start_date: "",
     end_date: "",
     deadline_time: "",
@@ -123,6 +149,20 @@ export default function GameweeksTab() {
     fetchData()
   }, [])
 
+  // Auto-set gameweek type based on selected season
+  useEffect(() => {
+    if (gameweekFormData.season_id) {
+      const selectedSeasonObj = seasons.find(s => s.season_id.toString() === gameweekFormData.season_id);
+      if (selectedSeasonObj && selectedSeasonObj.sport_code) {
+        const defaultType = getDefaultGameweekType(selectedSeasonObj.sport_code);
+        setGameweekFormData(prev => ({
+          ...prev,
+          gameweek_type: defaultType
+        }));
+      }
+    }
+  }, [gameweekFormData.season_id, seasons]);
+
   const fetchData = async () => {
     try {
       setLoading(true)
@@ -147,7 +187,7 @@ export default function GameweeksTab() {
       if (gameweeksError) throw gameweeksError
       
       // Transform the data to include nested fields
-      const transformedGameweeks: Gameweek[] = (gameweeksData || []).map((gameweek: { season: { season_name: any; league: { league_code: any; sport: { sport_code: any } } } }) => ({
+      const transformedGameweeks: Gameweek[] = (gameweeksData || []).map((gameweek: any) => ({
         ...gameweek,
         season_name: gameweek.season?.season_name,
         league_code: gameweek.season?.league?.league_code,
@@ -205,12 +245,27 @@ export default function GameweeksTab() {
     })
   }
 
+  // Extract gameweek type from name
+  const extractGameweekTypeFromName = (name: string): GameweekType => {
+    const lowerName = name.toLowerCase();
+    if (lowerName.includes('matchday')) return 'Matchday';
+    if (lowerName.includes('matchweek')) return 'Matchweek';
+    if (lowerName.includes('gameday')) return 'Gameday';
+    if (lowerName.includes('gameweek')) return 'Gameweek';
+    return 'Gameweek';
+  }
+
   const handleEditGameweek = (gameweek: Gameweek) => {
     setEditingGameweek(gameweek)
+    
+    // Extract gameweek type from name
+    const gameweekType = extractGameweekTypeFromName(gameweek.gameweek_name);
+    
     setGameweekFormData({
       season_id: gameweek.season_id.toString(),
-      gameweek_name: gameweek.gameweek_name || "",
+      gameweek_type: gameweekType,
       gameweek_number: gameweek.gameweek_number,
+      gameweek_name: gameweek.gameweek_name || "",
       start_date: gameweek.start_date,
       end_date: gameweek.end_date,
       deadline_time: new Date(gameweek.deadline_time).toISOString().slice(0, 16),
@@ -224,8 +279,9 @@ export default function GameweeksTab() {
     setEditingGameweek(null)
     setGameweekFormData({
       season_id: "",
-      gameweek_name: "",
+      gameweek_type: "Gameweek",
       gameweek_number: 0,
+      gameweek_name: "",
       start_date: "",
       end_date: "",
       deadline_time: "",
@@ -253,17 +309,32 @@ export default function GameweeksTab() {
         return
       }
 
-      if (!gameweekFormData.start_date || !gameweekFormData.end_date) {
-        alert("Please set start and end dates")
+      // Validate dates based on gameweek type
+      if (!gameweekFormData.start_date) {
+        alert("Please set a start date")
         return
       }
 
+      if (gameweekFormData.gameweek_type !== 'Matchday' && !gameweekFormData.end_date) {
+        alert(`Please set an end date for ${gameweekFormData.gameweek_type}`)
+        return
+      }
+
+      // For Matchday, set end_date same as start_date
+      const endDate = gameweekFormData.gameweek_type === 'Matchday' 
+        ? gameweekFormData.start_date 
+        : gameweekFormData.end_date;
+
+      // Generate gameweek name if not provided
+      const gameweekName = gameweekFormData.gameweek_name || 
+        `${gameweekFormData.gameweek_type} ${gameweekFormData.gameweek_number}`;
+
       const gameweekData = {
         season_id: parseInt(gameweekFormData.season_id),
-        gameweek_name: gameweekFormData.gameweek_name || `Gameweek ${gameweekFormData.gameweek_number}`,
+        gameweek_name: gameweekName,
         gameweek_number: gameweekFormData.gameweek_number,
         start_date: gameweekFormData.start_date,
-        end_date: gameweekFormData.end_date,
+        end_date: endDate,
         deadline_time: new Date(gameweekFormData.deadline_time).toISOString(),
         is_current: gameweekFormData.is_current,
         is_finished: gameweekFormData.is_finished,
@@ -271,22 +342,24 @@ export default function GameweeksTab() {
 
       // Check if this would make multiple current gameweeks
       if (gameweekData.is_current) {
-        const { data: currentGameweeks } = await supabase
+        const { data: currentGameweeksInSeason } = await supabase
           .from('gameweeks')
           .select('gameweek_id')
+          .eq('season_id', gameweekData.season_id)
           .eq('is_current', true)
           .neq('gameweek_id', editingGameweek?.gameweek_id || 0)
 
-        if (currentGameweeks && currentGameweeks.length > 0) {
-          const confirmMessage = "There is already a current gameweek. Setting this as current will unset the others. Continue?"
+        if (currentGameweeksInSeason && currentGameweeksInSeason.length > 0) {
+          const confirmMessage = "There is already a current gameweek for this season/league. Setting this as current will unset the others. Continue?"
           if (!confirm(confirmMessage)) {
             return
           }
           
-          // Unset other current gameweeks
+          // Unset other current gameweeks IN THIS SEASON ONLY
           await supabase
             .from('gameweeks')
             .update({ is_current: false })
+            .eq('season_id', gameweekData.season_id)
             .eq('is_current', true)
         }
       }
@@ -308,7 +381,7 @@ export default function GameweeksTab() {
           .single()
 
         if (existingGameweek) {
-          alert(`Gameweek ${gameweekData.gameweek_number} already exists for this season`)
+          alert(`${gameweekFormData.gameweek_type} ${gameweekData.gameweek_number} already exists for this season`)
           return
         }
 
@@ -377,14 +450,14 @@ export default function GameweeksTab() {
         
         if (error) throw error
       } else {
-        // Set as current
-        const confirmMessage = "Setting this as current gameweek will unset any other current gameweeks. Continue?"
+        const confirmMessage = "Setting this as current gameweek will unset any other current gameweeks in this league/season. Continue?"
         if (!confirm(confirmMessage)) return
 
-        // First, unset all current gameweeks
+        // First, unset all current gameweeks IN THIS SEASON ONLY
         await supabase
           .from('gameweeks')
           .update({ is_current: false })
+          .eq('season_id', gameweek.season_id)
           .eq('is_current', true)
 
         // Then set this one as current
@@ -423,6 +496,12 @@ export default function GameweeksTab() {
     })
   }
 
+  // Get gameweek short form for display
+  const getGameweekShortForm = (gameweek: Gameweek): string => {
+    const type = extractGameweekTypeFromName(gameweek.gameweek_name);
+    return GAMEWEEK_SHORT_FORMS[type] || 'GW';
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -441,217 +520,254 @@ export default function GameweeksTab() {
         {/* Sport Filter Tabs */}
         <Card>
           <CardHeader>
-            <CardTitle>All Gameweeks</CardTitle>
-            <div className="flex gap-2 mt-4 border-b overflow-x-auto">
-              <button
-                onClick={() => setGameweekSportFilter("all")}
-                className={`px-4 py-2 text-sm font-medium transition-colors relative whitespace-nowrap ${
-                  gameweekSportFilter === "all"
-                    ? "border-b-2 border-primary text-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <CardTitle>All Gameweeks</CardTitle>
+    <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+      {/* Season dropdown on the left */}
+      <div className="w-full md:w-64">
+        <Select
+          value={selectedSeason}
+          onValueChange={setSelectedSeason}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder={gameweekSportFilter === "all" ? "Select season" : "Filter seasons"} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Seasons</SelectItem>
+            {seasons.map((season) => (
+              <SelectItem key={season.season_id} value={season.season_id.toString()}>
+                {season.season_name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      
+      {/* Search bar in the middle */}
+      <div className="relative w-full md:w-64">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Search gameweeks..."
+          className="pl-10"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </div>
+      
+      {/* Add Gameweek button on the right */}
+      <Dialog open={isGameweekDialogOpen} onOpenChange={setIsGameweekDialogOpen}>
+        <DialogTrigger asChild>
+          <Button onClick={handleCreateGameweek} className="w-full md:w-auto">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Gameweek
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingGameweek ? "Edit Gameweek" : "Add New Gameweek"}</DialogTitle>
+            <DialogDescription>
+              {editingGameweek ? "Update the gameweek details below." : "Add a new gameweek to a season."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="gameweek-season">Season *</Label>
+              <Select
+                value={gameweekFormData.season_id}
+                onValueChange={(value) => setGameweekFormData({ ...gameweekFormData, season_id: value })}
+                required
               >
-                All Sports ({sportCounts.all || 0})
-              </button>
-              {sports.map((sport) => (
-                <button
-                  key={sport.sport_id}
-                  onClick={() => setGameweekSportFilter(sport.sport_code)}
-                  className={`px-4 py-2 text-sm font-medium transition-colors relative whitespace-nowrap ${
-                    gameweekSportFilter === sport.sport_code
-                      ? "border-b-2 border-primary text-primary"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {sport.sport_name} ({sportCounts[sport.sport_code] || 0})
-                </button>
-              ))}
+                <SelectTrigger id="gameweek-season">
+                  <SelectValue placeholder="Select season" />
+                </SelectTrigger>
+                <SelectContent>
+                  {seasons.map((season) => (
+                    <SelectItem key={season.season_id} value={season.season_id.toString()}>
+                      {season.season_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          </CardHeader>
-          <CardContent>
-            {/* Search and Controls Row */}
-            <div className="flex flex-col md:flex-row gap-4 mb-6">
-              <div className="flex flex-col md:flex-row gap-4 flex-1">
-                {/* Search Bar */}
-                <div className="relative w-full md:w-64">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Search gameweeks..."
-                    className="pl-10"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
 
-                {/* Season Filter */}
-                <div className="w-full md:w-64">
-                  <Select
-                    value={selectedSeason}
-                    onValueChange={setSelectedSeason}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Filter by season" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Seasons</SelectItem>
-                      {seasons.map((season) => (
-                        <SelectItem key={season.season_id} value={season.season_id.toString()}>
-                          {season.season_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+            <div className="space-y-2">
+              <Label htmlFor="gameweek-type">Gameweek Type *</Label>
+              <Select
+                value={gameweekFormData.gameweek_type}
+                onValueChange={(value: GameweekType) => 
+                  setGameweekFormData({ ...gameweekFormData, gameweek_type: value })
+                }
+                required
+              >
+                <SelectTrigger id="gameweek-type">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {GAMEWEEK_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {gameweekFormData.gameweek_type === 'Matchday' 
+                  ? 'For single day events (e.g., Cricket)' 
+                  : 'For multi-day events (e.g., Football)'}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="gameweek-number">{gameweekFormData.gameweek_type} Number *</Label>
+              <Input
+                id="gameweek-number"
+                type="number"
+                min="1"
+                placeholder="e.g., 1"
+                value={gameweekFormData.gameweek_number || ""}
+                onChange={(e) => 
+                  setGameweekFormData({ 
+                    ...gameweekFormData, 
+                    gameweek_number: parseInt(e.target.value) || 0 
+                  })
+                }
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="gameweek-name">Custom Name (Optional)</Label>
+              <Input
+                id="gameweek-name"
+                placeholder={`e.g., ${gameweekFormData.gameweek_type} ${gameweekFormData.gameweek_number || 'X'} - Special Event`}
+                value={gameweekFormData.gameweek_name}
+                onChange={(e) => setGameweekFormData({ ...gameweekFormData, gameweek_name: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Leave empty for default: "{gameweekFormData.gameweek_type} {gameweekFormData.gameweek_number || 'X'}"
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="gameweek-start">Start Date *</Label>
+              <Input
+                id="gameweek-start"
+                type="date"
+                value={gameweekFormData.start_date}
+                onChange={(e) => setGameweekFormData({ ...gameweekFormData, start_date: e.target.value })}
+                required
+              />
+            </div>
+
+            {gameweekFormData.gameweek_type !== 'Matchday' && (
+              <div className="space-y-2">
+                <Label htmlFor="gameweek-end">End Date *</Label>
+                <Input
+                  id="gameweek-end"
+                  type="date"
+                  value={gameweekFormData.end_date}
+                  onChange={(e) => setGameweekFormData({ ...gameweekFormData, end_date: e.target.value })}
+                  required
+                />
               </div>
+            )}
 
-              {/* Add Gameweek Button */}
-              <Dialog open={isGameweekDialogOpen} onOpenChange={setIsGameweekDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button onClick={handleCreateGameweek} className="w-full md:w-auto">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Gameweek
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>{editingGameweek ? "Edit Gameweek" : "Add New Gameweek"}</DialogTitle>
-                    <DialogDescription>
-                      {editingGameweek ? "Update the gameweek details below." : "Add a new gameweek to a season."}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="gameweek-season">Season *</Label>
-                      <Select
-                        value={gameweekFormData.season_id}
-                        onValueChange={(value) => setGameweekFormData({ ...gameweekFormData, season_id: value })}
-                        required
-                      >
-                        <SelectTrigger id="gameweek-season">
-                          <SelectValue placeholder="Select season" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {seasons.map((season) => (
-                            <SelectItem key={season.season_id} value={season.season_id.toString()}>
-                              {season.season_name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="gameweek-number">Gameweek Number *</Label>
-                      <Input
-                        id="gameweek-number"
-                        type="number"
-                        min="1"
-                        value={gameweekFormData.gameweek_number}
-                        onChange={(e) => setGameweekFormData({ ...gameweekFormData, gameweek_number: Number(e.target.value) })}
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="gameweek-name">Gameweek Name</Label>
-                      <Input
-                        id="gameweek-name"
-                        placeholder="e.g., Premier League Opening Week"
-                        value={gameweekFormData.gameweek_name}
-                        onChange={(e) => setGameweekFormData({ ...gameweekFormData, gameweek_name: e.target.value })}
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Leave empty to auto-generate: "Gameweek {gameweekFormData.gameweek_number}"
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="gameweek-start">Start Date *</Label>
-                      <Input
-                        id="gameweek-start"
-                        type="date"
-                        value={gameweekFormData.start_date}
-                        onChange={(e) => setGameweekFormData({ ...gameweekFormData, start_date: e.target.value })}
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="gameweek-end">End Date *</Label>
-                      <Input
-                        id="gameweek-end"
-                        type="date"
-                        value={gameweekFormData.end_date}
-                        onChange={(e) => setGameweekFormData({ ...gameweekFormData, end_date: e.target.value })}
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="gameweek-deadline">Deadline Time *</Label>
-                      <Input
-                        id="gameweek-deadline"
-                        type="datetime-local"
-                        value={gameweekFormData.deadline_time}
-                        onChange={(e) =>
-                          setGameweekFormData({ ...gameweekFormData, deadline_time: e.target.value })
-                        }
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="gameweek-current">Set as Current Gameweek</Label>
-                        <Switch
-                          id="gameweek-current"
-                          checked={gameweekFormData.is_current}
-                          onCheckedChange={(checked) =>
-                            setGameweekFormData({ ...gameweekFormData, is_current: checked })
-                          }
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Only one gameweek can be current at a time
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="gameweek-finished">Lock Gameweek</Label>
-                        <Switch
-                          id="gameweek-finished"
-                          checked={gameweekFormData.is_finished}
-                          onCheckedChange={(checked) =>
-                            setGameweekFormData({ ...gameweekFormData, is_finished: checked })
-                          }
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Locked gameweeks cannot be edited
-                      </p>
-                    </div>
-                  </div>
-                  <DialogFooter className="flex-col sm:flex-row gap-2">
-                    <Button variant="outline" onClick={() => setIsGameweekDialogOpen(false)} className="w-full sm:w-auto">
-                      Cancel
-                    </Button>
-                    <Button onClick={handleSaveGameweek} className="w-full sm:w-auto">
-                      {editingGameweek ? "Update" : "Create"}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+            <div className={`space-y-2 ${gameweekFormData.gameweek_type === 'Matchday' ? 'md:col-span-2' : ''}`}>
+              <Label htmlFor="gameweek-deadline">Deadline Time *</Label>
+              <Input
+                id="gameweek-deadline"
+                type="datetime-local"
+                value={gameweekFormData.deadline_time}
+                onChange={(e) =>
+                  setGameweekFormData({ ...gameweekFormData, deadline_time: e.target.value })
+                }
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                Deadline for team submissions and transfers
+              </p>
             </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="gameweek-current">Set as Current {gameweekFormData.gameweek_type}</Label>
+                <Switch
+                  id="gameweek-current"
+                  checked={gameweekFormData.is_current}
+                  onCheckedChange={(checked) =>
+                    setGameweekFormData({ ...gameweekFormData, is_current: checked })
+                  }
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Only one gameweek can be current at a time
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="gameweek-finished">Lock {gameweekFormData.gameweek_type}</Label>
+                <Switch
+                  id="gameweek-finished"
+                  checked={gameweekFormData.is_finished}
+                  onCheckedChange={(checked) =>
+                    setGameweekFormData({ ...gameweekFormData, is_finished: checked })
+                  }
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Locked gameweeks cannot be edited
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setIsGameweekDialogOpen(false)} className="w-full sm:w-auto">
+              Cancel
+            </Button>
+            <Button onClick={handleSaveGameweek} className="w-full sm:w-auto">
+              {editingGameweek ? "Update" : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  </div>
+  
+  <div className="flex flex-col gap-4 mt-4">
+    <div className="flex gap-2 border-b overflow-x-auto">
+      <button
+        onClick={() => setGameweekSportFilter("all")}
+        className={`px-4 py-2 text-sm font-medium transition-colors relative whitespace-nowrap ${
+          gameweekSportFilter === "all" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+        }`}
+      >
+        All Sports
+        {gameweekSportFilter === "all" && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
+      </button>
+      {sports.map((sport) => (
+        <button
+          key={sport.sport_id}
+          onClick={() => setGameweekSportFilter(sport.sport_code)}
+          className={`px-4 py-2 text-sm font-medium transition-colors relative whitespace-nowrap ${
+            gameweekSportFilter === sport.sport_code ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {sport.sport_name} ({sportCounts[sport.sport_code] || 0})
+          {gameweekSportFilter === sport.sport_code && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
+        </button>
+      ))}
+    </div>
+  </div>
+</CardHeader>
+          <CardContent>
 
             {/* Gameweeks Table */}
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>GW</TableHead>
+                    <TableHead>Type</TableHead>
                     <TableHead>Name</TableHead>
-                    <TableHead>Sport</TableHead>
                     <TableHead>League</TableHead>
                     <TableHead>Season</TableHead>
                     <TableHead>Start Date</TableHead>
@@ -664,108 +780,107 @@ export default function GameweeksTab() {
                 </TableHeader>
                 <TableBody>
                   {filteredGameweeks.length > 0 ? (
-                    filteredGameweeks.map((gameweek) => (
-                      <TableRow key={gameweek.gameweek_id}>
-                        <TableCell>
-                          <Badge variant="outline" className="font-mono">
-                            GW{gameweek.gameweek_number}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          <div className="flex items-center gap-2">
-                            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                            <span>{gameweek.gameweek_name || `Gameweek ${gameweek.gameweek_number}`}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">
-                            {gameweek.sport_code || "-"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {gameweek.league_code || "-"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm">{gameweek.season_name || "-"}</span>
-                        </TableCell>
-                        <TableCell>{formatDate(gameweek.start_date)}</TableCell>
-                        <TableCell>{formatDate(gameweek.end_date)}</TableCell>
-                        <TableCell>{formatDateTime(gameweek.deadline_time)}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            {gameweek.is_current ? (
-                              <Badge variant="default" className="bg-green-600">
-                                Current
-                              </Badge>
-                            ) : (
+                    filteredGameweeks.map((gameweek) => {
+                      const gameweekType = extractGameweekTypeFromName(gameweek.gameweek_name);
+                      const shortForm = getGameweekShortForm(gameweek);
+                      
+                      return (
+                        <TableRow key={gameweek.gameweek_id}>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {shortForm}{gameweek.gameweek_number}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              <span>{gameweek.gameweek_name || `${gameweekType} ${gameweek.gameweek_number}`}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {gameweek.league_code || "-"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm">{gameweek.season_name || "-"}</span>
+                          </TableCell>
+                          <TableCell>{formatDate(gameweek.start_date)}</TableCell>
+                          <TableCell>{formatDate(gameweek.end_date)}</TableCell>
+                          <TableCell>{formatDateTime(gameweek.deadline_time)}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {gameweek.is_current ? (
+                                <Badge variant="default" className="bg-green-600">
+                                  Current
+                                </Badge>
+                              ) : (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleSetCurrent(gameweek)}
+                                  className="h-7 text-xs"
+                                  disabled={gameweek.is_finished}
+                                >
+                                  Set Current
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center space-x-2">
+                                <Switch
+                                  checked={gameweek.is_finished}
+                                  onCheckedChange={() => handleToggleLockStatus(gameweek)}
+                                  disabled={updatingLockStatus === gameweek.gameweek_id}
+                                  className="data-[state=checked]:bg-red-600"
+                                />
+                                <span className={`text-sm font-medium ${gameweek.is_finished ? 'text-red-600' : 'text-green-600'}`}>
+                                  {gameweek.is_finished ? 'Locked' : 'Unlocked'}
+                                </span>
+                              </div>
+                              {updatingLockStatus === gameweek.gameweek_id && (
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
                               <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleSetCurrent(gameweek)}
-                                className="h-7 text-xs"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEditGameweek(gameweek)}
                                 disabled={gameweek.is_finished}
                               >
-                                Set Current
+                                <Edit className="h-4 w-4" />
                               </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center space-x-2">
-                              <Switch
-                                checked={gameweek.is_finished}
-                                onCheckedChange={() => handleToggleLockStatus(gameweek)}
-                                disabled={updatingLockStatus === gameweek.gameweek_id}
-                                className="data-[state=checked]:bg-red-600"
-                              />
-                              <span className={`text-sm font-medium ${gameweek.is_finished ? 'text-red-600' : 'text-green-600'}`}>
-                                {gameweek.is_finished ? 'Locked' : 'Unlocked'}
-                              </span>
-                            </div>
-                            {updatingLockStatus === gameweek.gameweek_id && (
-                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEditGameweek(gameweek)}
-                              disabled={gameweek.is_finished}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={async () => {
-                                if (confirm('Are you sure you want to delete this gameweek?')) {
-                                  const { error } = await supabase
-                                    .from('gameweeks')
-                                    .delete()
-                                    .eq('gameweek_id', gameweek.gameweek_id)
-                                  
-                                  if (error) {
-                                    console.error('Error deleting gameweek:', error)
-                                    alert('Error deleting gameweek')
-                                  } else {
-                                    fetchData()
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={async () => {
+                                  if (confirm('Are you sure you want to delete this gameweek?')) {
+                                    const { error } = await supabase
+                                      .from('gameweeks')
+                                      .delete()
+                                      .eq('gameweek_id', gameweek.gameweek_id)
+                                    
+                                    if (error) {
+                                      console.error('Error deleting gameweek:', error)
+                                      alert('Error deleting gameweek')
+                                    } else {
+                                      fetchData()
+                                    }
                                   }
-                                }
-                              }}
-                              disabled={gameweek.is_finished}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                                }}
+                                disabled={gameweek.is_finished}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   ) : (
                     <TableRow>
                       <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">

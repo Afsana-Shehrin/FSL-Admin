@@ -1,18 +1,13 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getSupabase } from "@/lib/supabase/working-client"
-import { Admin, DatabaseAdmin, DatabaseAdminProfile, Sport, SportFormData } from "./components/types"
+import { Admin, DatabaseAdmin, DatabaseAdminProfile } from "./components/types"
 import AdminsTab from "./components/AdminsTab"
-import SportsTab from "./components/SportsTab"
-import NotificationsTab from "./components/NotificationsTab"
-import SystemTab from "./components/SystemTab"
 
 export default function SettingsPage() {
   const [admins, setAdmins] = useState<Admin[]>([])
   const [currentUserRole, setCurrentUserRole] = useState<string>("")
-  const [sportsList, setSportsList] = useState<Sport[]>([])
 
   // Helper function to convert binary/base64 to displayable image
   const getProfileImageSrc = (profileData: any): string | null => {
@@ -235,19 +230,6 @@ export default function SettingsPage() {
   useEffect(() => {
     // Fetch admins from database
     fetchAdmins()
-
-    // Fetch sports from localStorage
-    const storedSports = localStorage.getItem("sports_list")
-    if (storedSports) {
-      setSportsList(JSON.parse(storedSports))
-    } else {
-      const defaultSports = [
-        { id: "1", name: "Football", icon: "⚽", isActive: true },
-        { id: "2", name: "Cricket", icon: "🏏", isActive: true },
-      ]
-      setSportsList(defaultSports)
-      localStorage.setItem("sports_list", JSON.stringify(defaultSports))
-    }
   }, [])
 
   // Update current user role when admins change
@@ -351,6 +333,42 @@ export default function SettingsPage() {
       alert("Failed to update admin status")
     }
   }
+  
+  const handleDeleteAdmin = async (adminId: string) => {
+    if (currentUserRole !== "Super Admin") {
+      alert("Only Super Admins can delete admin accounts")
+      return
+    }
+
+    if (!confirm("Are you sure you want to delete this admin? This action cannot be undone.")) {
+      return
+    }
+
+    try {
+      const supabase = getSupabase()
+      
+      // Since you have CASCADE foreign key constraint, deleting from admins will also delete from admin_profiles
+      const { error } = await supabase
+        .from('admins')
+        .delete()
+        .eq('admin_id', adminId)
+
+      if (error) {
+        console.error("Error deleting admin:", error)
+        alert("Failed to delete admin: " + error.message)
+        return
+      }
+
+      // Refresh the admin list
+      await fetchAdmins()
+      
+      alert("Admin deleted successfully!")
+      
+    } catch (error: any) {
+      console.error("Error deleting admin:", error)
+      alert("Failed to delete admin")
+    }
+  }
 
   const handleEditAdmin = (admin: Admin) => {
     // This function is passed to AdminsTab component
@@ -405,88 +423,25 @@ export default function SettingsPage() {
     }
   }
 
-  const handleCreateSport = () => {
-    // This function is passed to SportsTab component
-  }
-
-  const handleEditSport = (sport: Sport) => {
-    // This function is passed to SportsTab component
-  }
-
-  const handleSaveSport = (sportFormData: SportFormData, editingSport: Sport | null) => {
-    let updatedSports: Sport[]
-    if (editingSport) {
-      updatedSports = sportsList.map((s) => (s.id === editingSport.id ? { ...s, ...sportFormData } : s))
-    } else {
-      const newSport: Sport = {
-        id: Date.now().toString(),
-        ...sportFormData,
-      }
-      updatedSports = [...sportsList, newSport]
-    }
-    setSportsList(updatedSports)
-    localStorage.setItem("sports_list", JSON.stringify(updatedSports))
-  }
-
-  const handleDeleteSport = (sportId: string) => {
-    const updatedSports = sportsList.filter((s) => s.id !== sportId)
-    setSportsList(updatedSports)
-    localStorage.setItem("sports_list", JSON.stringify(updatedSports))
-  }
-
-  const handleToggleSportStatus = (sportId: string) => {
-    const updatedSports = sportsList.map((s) => (s.id === sportId ? { ...s, isActive: !s.isActive } : s))
-    setSportsList(updatedSports)
-    localStorage.setItem("sports_list", JSON.stringify(updatedSports))
-  }
-
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Settings</h1>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Admin Management</h1>
         <p className="text-sm md:text-base text-muted-foreground">
-          Manage admin accounts, permissions, and system settings
+          Manage admin accounts and permissions
         </p>
       </div>
 
-      <Tabs defaultValue="admins" className="space-y-4">
-        <TabsList className="w-full justify-start overflow-x-auto">
-          <TabsTrigger value="admins">Admins</TabsTrigger>
-          <TabsTrigger value="sports">Sports</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="system">System</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="admins" className="space-y-4">
-          <AdminsTab
-            admins={admins}
-            currentUserRole={currentUserRole}
-            onToggleStatus={handleToggleStatus}
-            onAddAdmin={handleAddAdmin}
-            onEditAdmin={handleEditAdmin}
-            onSaveEdit={handleSaveEdit}
-            fetchAdmins={fetchAdmins}
-          />
-        </TabsContent>
-
-        <TabsContent value="sports" className="space-y-4">
-          <SportsTab
-            sportsList={sportsList}
-            onToggleSportStatus={handleToggleSportStatus}
-            onEditSport={handleEditSport}
-            onDeleteSport={handleDeleteSport}
-            onSaveSport={handleSaveSport}
-          />
-        </TabsContent>
-
-        <TabsContent value="notifications" className="space-y-4">
-          <NotificationsTab />
-        </TabsContent>
-
-        <TabsContent value="system" className="space-y-4">
-          <SystemTab />
-        </TabsContent>
-      </Tabs>
+      <AdminsTab
+        admins={admins}
+        currentUserRole={currentUserRole}
+        onToggleStatus={handleToggleStatus}
+        onAddAdmin={handleAddAdmin}
+        onEditAdmin={handleEditAdmin}
+        onDeleteAdmin={handleDeleteAdmin}
+        onSaveEdit={handleSaveEdit}
+        fetchAdmins={fetchAdmins}
+      />
     </div>
   )
 }

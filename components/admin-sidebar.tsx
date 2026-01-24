@@ -14,6 +14,7 @@ import {
   ClipboardList,
   X,
   Menu,
+  User,
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
@@ -36,8 +37,8 @@ const navItems = [
   { href: "/admin/results", label: "Results Board", icon: ClipboardList },
   { href: "/admin/rules", label: "Rules", icon: FileText },
   { href: "/admin/users", label: "Users", icon: Users },
-  { href: "/admin/logs", label: "Activity Logs", icon: FileText },
-  { href: "/admin/settings", label: "Settings", icon: Settings },
+ // { href: "/admin/logs", label: "Activity Logs", icon: FileText },
+  { href: "/admin/settings", label: "Admins", icon: User },
 ]
 
 export function AdminSidebar({ admin }: AdminSidebarProps) {

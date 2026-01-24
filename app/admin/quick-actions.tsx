@@ -1,71 +1,100 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+"use client"
+
 import { Button } from "@/components/ui/button"
-import { Lock, Calculator, RefreshCw, Plus } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Lock, Calculator, BarChart ,CheckCircle} from "lucide-react"
 
 interface QuickActionsProps {
   onLock: () => void
-  onScoring: () => void
-  onStats: () => void
-  onAddAction: () => void
-  isProcessing?: boolean
+  onSetCurrent?: () => void
+  onScoring?: () => void
+  onStats?: () => void
 }
 
-export default function QuickActions({ 
-  onLock, 
-  onScoring, 
-  onStats, 
-  onAddAction,
-  isProcessing = false 
-}: QuickActionsProps) {
-  const actions = [
-    {
-      title: "Trigger Gameweek Lock",
-      description: "Lock current gameweek for team changes",
-      icon: Lock,
-      onClick: onLock,
-    },
-    {
-      title: "Run Scoring Calculation",
-      description: "Calculate points for completed fixtures",
-      icon: Calculator,
-      onClick: onScoring,
-    },
-    {
-      title: "Update Player Stats",
-      description: "Sync latest player statistics",
-      icon: RefreshCw,
-      onClick: onStats,
-    },
-  ]
-
+export default function QuickActions({ onLock, onSetCurrent, onScoring, onStats }: QuickActionsProps) {
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader>
         <CardTitle>Quick Actions</CardTitle>
-        <Button size="sm" variant="outline" onClick={onAddAction}>
-          <Plus className="h-4 w-4 mr-1" />
-          Add More
-        </Button>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-2">
-          {actions.map((action) => {
-            const Icon = action.icon
-            return (
-              <button
-                key={action.title}
-                onClick={action.onClick}
-                disabled={isProcessing}
-                className="w-full text-left px-4 py-3 rounded-md bg-secondary hover:bg-secondary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <div className="flex items-center gap-2">
-                  <Icon className="h-4 w-4" />
-                  <p className="font-medium">{action.title}</p>
+      <CardContent className="space-y-4">
+        <div className="space-y-3">
+          <Button 
+            onClick={onLock} 
+            variant="outline" 
+            className="w-full justify-start h-auto py-3 px-4"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900">
+                <Lock className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div className="text-left">
+                <div className="font-medium">Trigger Gameweek Lock</div>
+                <div className="text-sm text-muted-foreground">
+                  Lock current gameweek for team changes
                 </div>
-                <p className="text-sm text-muted-foreground mt-1">{action.description}</p>
-              </button>
-            )
-          })}
+              </div>
+            </div>
+          </Button>
+           {onSetCurrent && (
+            <Button 
+              onClick={onSetCurrent} 
+              variant="outline" 
+              className="w-full justify-start h-auto py-3 px-4"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-yellow-100 dark:bg-yellow-900">
+                  <CheckCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+                </div>
+                <div className="text-left">
+                  <div className="font-medium">Set Current Gameweek</div>
+                  <div className="text-sm text-muted-foreground">
+                    Mark a gameweek as active/current
+                  </div>
+                </div>
+              </div>
+            </Button>
+          )}
+
+          {onScoring && (
+            <Button 
+              onClick={onScoring} 
+              variant="outline" 
+              className="w-full justify-start h-auto py-3 px-4"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900">
+                  <Calculator className="h-5 w-5 text-green-600 dark:text-green-400" />
+                </div>
+                <div className="text-left">
+                  <div className="font-medium">Run Scoring Calculation</div>
+                  <div className="text-sm text-muted-foreground">
+                    Calculate points for completed fixtures
+                  </div>
+                </div>
+              </div>
+            </Button>
+          )}
+
+          {onStats && (
+            <Button 
+              onClick={onStats} 
+              variant="outline" 
+              className="w-full justify-start h-auto py-3 px-4"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900">
+                  <BarChart className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div className="text-left">
+                  <div className="font-medium">Update Player Stats</div>
+                  <div className="text-sm text-muted-foreground">
+                    Sync latest player statistics
+                  </div>
+                </div>
+              </div>
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

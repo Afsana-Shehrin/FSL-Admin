@@ -17,7 +17,7 @@ export default function FixturesPage() {
       <Tabs defaultValue="fixtures" className="space-y-4">
         <TabsList className="w-full justify-start overflow-x-auto">
           <TabsTrigger value="fixtures">Fixtures</TabsTrigger>
-          <TabsTrigger value="gameweeks">Gameweeks</TabsTrigger>
+          <TabsTrigger value="gameweeks">Gameweek/Matchday</TabsTrigger>
         </TabsList>
 
         <TabsContent value="fixtures">

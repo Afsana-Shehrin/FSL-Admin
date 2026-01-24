@@ -36,6 +36,7 @@ interface League {
   league_description: string | null;
   league_status: 'Coming soon' | 'Live' | 'Completed';
   winner_team_id: number | null;
+  match_type: 'T20' | 'ODI' | 'Test' | 'T10' | 'Other'; // Added match_type
 }
 
 interface Sport {
@@ -64,6 +65,7 @@ interface LeagueFormData {
   league_description: string;
   league_status: 'Coming soon' | 'Live' | 'Completed';
   winner_team_id: number | null;
+  match_type: 'T20' | 'ODI' | 'Test' | 'T10' | 'Other'; // Added match_type
 }
 
 interface LeaguesTabProps {
@@ -71,24 +73,64 @@ interface LeaguesTabProps {
 }
 
 // Countries data
-const countriesData = [
-  { code: "GB", name: "United Kingdom" },
-  { code: "ES", name: "Spain" },
-  { code: "DE", name: "Germany" },
-  { code: "IT", name: "Italy" },
-  { code: "FR", name: "France" },
-  { code: "US", name: "United States" },
-  { code: "IN", name: "India" },
-  { code: "AU", name: "Australia" },
-  { code: "JP", name: "Japan" },
-  { code: "BR", name: "Brazil" },
-  { code: "AR", name: "Argentina" },
-  { code: "PT", name: "Portugal" },
-  { code: "NL", name: "Netherlands" },
-  { code: "BE", name: "Belgium" },
-  { code: "RU", name: "Russia" },
-  { code: "CN", name: "China" },
-  { code: "KR", name: "South Korea" },
+const countriesData = 
+[
+  { code: "AFG", name: "Afghanistan" },
+  { code: "ARG", name: "Argentina" },
+  { code: "AUS", name: "Australia" },
+  { code: "AUT", name: "Austria" },
+  { code: "BAN", name: "Bangladesh" },
+  { code: "BEL", name: "Belgium" },
+  { code: "BRA", name: "Brazil" },
+  { code: "CAN", name: "Canada" },
+  { code: "CHI", name: "Chile" },
+  { code: "CHN", name: "China" },
+  { code: "COL", name: "Colombia" },
+  { code: "CRO", name: "Croatia" },
+  { code: "DEN", name: "Denmark" },
+  { code: "EGY", name: "Egypt" },
+  { code: "ENG", name: "England" },
+  { code: "ESP", name: "Spain" },
+  { code: "FRA", name: "France" },
+  { code: "GER", name: "Germany" },
+  { code: "GHA", name: "Ghana" },
+  { code: "GRE", name: "Greece" },
+  { code: "IND", name: "India" },
+  { code: "IRN", name: "Iran" },
+  { code: "IRL", name: "Ireland" },
+  { code: "ITA", name: "Italy" },
+  { code: "JAM", name: "Jamaica" },
+  { code: "JPN", name: "Japan" },
+  { code: "KEN", name: "Kenya" },
+  { code: "KOR", name: "South Korea" },
+  { code: "MEX", name: "Mexico" },
+  { code: "MAR", name: "Morocco" },
+  { code: "NED", name: "Netherlands" },
+  { code: "NZ", name: "New Zealand" },
+  { code: "NGA", name: "Nigeria" },
+  { code: "NOR", name: "Norway" },
+  { code: "PAK", name: "Pakistan" },
+  { code: "PER", name: "Peru" },
+  { code: "POL", name: "Poland" },
+  { code: "POR", name: "Portugal" },
+  { code: "RSA", name: "South Africa" },
+  { code: "RUS", name: "Russia" },
+  { code: "SAU", name: "Saudi Arabia" },
+  { code: "SCO", name: "Scotland" },
+  { code: "SEN", name: "Senegal" },
+  { code: "SRB", name: "Serbia" },
+  { code: "SL", name: "Sri Lanka" },
+  { code: "SUI", name: "Switzerland" },
+  { code: "TAN", name: "Tanzania" },
+  { code: "THA", name: "Thailand" },
+  { code: "TUN", name: "Tunisia" },
+  { code: "TUR", name: "Turkey" },
+  { code: "UAE", name: "United Arab Emirates" },
+  { code: "UKR", name: "Ukraine" },
+  { code: "URU", name: "Uruguay" },
+  { code: "USA", name: "United States" },
+  { code: "WI", name: "West Indies" },
+  { code: "ZIM", name: "Zimbabwe" }
 ]
 
 // League status options
@@ -96,6 +138,15 @@ const leagueStatusOptions = [
   { value: "Coming soon", label: "Coming soon", icon: Calendar },
   { value: "Live", label: "Live", icon: PlayCircle },
   { value: "Completed", label: "Completed", icon: CheckCircle },
+]
+
+// Match type options
+const matchTypeOptions = [
+  { value: "T20", label: "T20" },
+  { value: "ODI", label: "ODI" },
+  { value: "Test", label: "Test" },
+  { value: "T10", label: "T10" },
+  { value: "Other", label: "Other" },
 ]
 
 // Initialize Supabase client inside the component
@@ -114,7 +165,7 @@ const getSupabaseClient = () => {
 export default function LeaguesTab({ selectedSport }: LeaguesTabProps) {
   const [leagues, setLeagues] = useState<League[]>([])
   const [sports, setSports] = useState<Sport[]>([])
-  const [teams, setTeams] = useState<Team[]>([]) // New state for teams
+  const [teams, setTeams] = useState<Team[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [isLeagueDialogOpen, setIsLeagueDialogOpen] = useState(false)
@@ -132,6 +183,7 @@ export default function LeaguesTab({ selectedSport }: LeaguesTabProps) {
     league_description: "",
     league_status: "Coming soon",
     winner_team_id: null,
+    match_type: "T20", // Default match type
   })
 
   // Initialize Supabase client on component mount
@@ -217,6 +269,7 @@ export default function LeaguesTab({ selectedSport }: LeaguesTabProps) {
       league_description: league.league_description || "",
       league_status: league.league_status || "Coming soon",
       winner_team_id: league.winner_team_id || null,
+      match_type: league.match_type || "T20", // Set match type from league data
     })
     setIsLeagueDialogOpen(true)
   }
@@ -234,6 +287,7 @@ export default function LeaguesTab({ selectedSport }: LeaguesTabProps) {
       league_description: "",
       league_status: "Coming soon",
       winner_team_id: null,
+      match_type: "T20", // Default match type
     })
     setIsLeagueDialogOpen(true)
   }
@@ -272,6 +326,7 @@ export default function LeaguesTab({ selectedSport }: LeaguesTabProps) {
             league_description: leagueData.league_description || null,
             league_status: leagueData.league_status || "Coming soon",
             winner_team_id: leagueData.league_status === "Completed" ? leagueData.winner_team_id : null,
+            match_type: leagueData.match_type || "T20", // Add match_type
           })
           .eq('league_id', editingLeague.league_id)
           .select()
@@ -301,6 +356,7 @@ export default function LeaguesTab({ selectedSport }: LeaguesTabProps) {
             league_description: leagueData.league_description || null,
             league_status: leagueData.league_status || "Coming soon",
             winner_team_id: leagueData.league_status === "Completed" ? leagueData.winner_team_id : null,
+            match_type: leagueData.match_type || "T20", // Add match_type
             created_at: new Date().toISOString()
           }])
           .select()
@@ -379,7 +435,7 @@ export default function LeaguesTab({ selectedSport }: LeaguesTabProps) {
 
   const getSportName = (sportId: number) => {
     const sport = sports.find((s) => s.sport_id === sportId)
-    return sport ? `${sport.sport_name}` : "Unknown"
+    return sport ? `${sport.sport_code}` : "Unknown"
   }
 
   const getTeamName = (teamId: number | null) => {
@@ -411,6 +467,17 @@ export default function LeaguesTab({ selectedSport }: LeaguesTabProps) {
       case 'Live': return "bg-green-500 hover:bg-green-600"
       case 'Completed': return "bg-purple-500 hover:bg-purple-600"
       default: return "bg-gray-500 hover:bg-gray-600"
+    }
+  }
+
+  const getMatchTypeColor = (matchType: string) => {
+    switch (matchType) {
+      case 'T20': return "bg-green-100 text-green-800 border-green-200"
+      case 'ODI': return "bg-blue-100 text-blue-800 border-blue-200"
+      case 'Test': return "bg-red-100 text-red-800 border-red-200"
+      case 'T10': return "bg-purple-100 text-purple-800 border-purple-200"
+      case 'Other': return "bg-gray-100 text-gray-800 border-gray-200"
+      default: return "bg-gray-100 text-gray-800 border-gray-200"
     }
   }
 
@@ -526,108 +593,122 @@ export default function LeaguesTab({ selectedSport }: LeaguesTabProps) {
               </div>
 
               {/* Sport Selection */}
-              <div className="space-y-2">
-                <Label htmlFor="sport">Sport *</Label>
-                <Select
-                  value={leagueFormData.sport_id?.toString() || ""}
-                  onValueChange={(value) => setLeagueFormData({ ...leagueFormData, sport_id: parseInt(value) })}
-                >
-                  <SelectTrigger id="sport">
-                    <SelectValue placeholder="Select sport" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sports.map((sport) => (
-                      <SelectItem key={sport.sport_id} value={sport.sport_id.toString()}>
-                        {sport.sport_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <div className="grid grid-cols-2 gap-4">
+  <div className="space-y-2">
+    <Label htmlFor="sport">Sport *</Label>
+    <Select
+      value={leagueFormData.sport_id?.toString() || ""}
+      onValueChange={(value) => setLeagueFormData({ ...leagueFormData, sport_id: parseInt(value) })}
+    >
+      <SelectTrigger id="sport">
+        <SelectValue placeholder="Select sport" />
+      </SelectTrigger>
+      <SelectContent>
+        {sports.map((sport) => (
+          <SelectItem key={sport.sport_id} value={sport.sport_id.toString()}>
+            {sport.sport_name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  </div>
 
-              {/* Country Code */}
-              <div className="space-y-2">
-                <Label htmlFor="country-code">Country Code</Label>
-                <Select
-                  value={leagueFormData.country_code || "none"}
-                  onValueChange={(value) => setLeagueFormData({ ...leagueFormData, country_code: value === "none" ? "" : value })}
-                >
-                  <SelectTrigger id="country-code">
-                    <SelectValue placeholder="Select country" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Select Country</SelectItem>
-                    {countriesData.map((country) => (
-                      <SelectItem key={country.code} value={country.code}>
-                        {country.name} ({country.code})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+  <div className="space-y-2">
+    <Label htmlFor="country-code">Host Country Code</Label>
+    <Select
+      value={leagueFormData.country_code || "none"}
+      onValueChange={(value) => setLeagueFormData({ ...leagueFormData, country_code: value === "none" ? "" : value })}
+    >
+      <SelectTrigger id="country-code">
+        <SelectValue placeholder="Select country" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="none">Select Country</SelectItem>
+        {countriesData.map((country) => (
+          <SelectItem key={country.code} value={country.code}>
+            {country.name} ({country.code})
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  </div>
+</div>
 
               {/* Number of Clubs */}
-              <div className="space-y-2">
-                <Label htmlFor="number-of-clubs">Number of Clubs</Label>
-                <Input
-                  id="number-of-clubs"
-                  type="number"
-                  min="0"
-                  value={leagueFormData.number_of_clubs}
-                  onChange={(e) => setLeagueFormData({ ...leagueFormData, number_of_clubs: parseInt(e.target.value) || 0 })}
-                />
-              </div>
+              <div className="grid grid-cols-2 gap-4">
+  <div className="space-y-2">
+    <Label htmlFor="number-of-clubs">Number of Clubs/Teams</Label>
+    <Input
+      id="number-of-clubs"
+      type="number"
+      min="0"
+      value={leagueFormData.number_of_clubs}
+      onChange={(e) => setLeagueFormData({ ...leagueFormData, number_of_clubs: parseInt(e.target.value) || 0 })}
+    />
+  </div>
+
+  <div className="space-y-2">
+    <Label htmlFor="match-type">Match Type</Label>
+    <Select
+      value={leagueFormData.match_type}
+      onValueChange={(value: 'T20' | 'ODI' | 'Test' | 'T10' | 'Other') => 
+        setLeagueFormData({ ...leagueFormData, match_type: value })
+      }
+    >
+      <SelectTrigger id="match-type">
+        <SelectValue placeholder="Select match type" />
+      </SelectTrigger>
+      <SelectContent>
+        {matchTypeOptions.map((type) => (
+          <SelectItem key={type.value} value={type.value}>
+            {type.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  </div>
+</div>
+
 
               {/* League Cup */}
-              <div className="space-y-2">
-                <Label htmlFor="league-cup">League Cup</Label>
-                <Input
-                  id="league-cup"
-                  placeholder="e.g., FA Cup, Copa del Rey"
-                  value={leagueFormData.league_cup}
-                  onChange={(e) => setLeagueFormData({ ...leagueFormData, league_cup: e.target.value })}
-                />
-              </div>
+             <div className="grid grid-cols-2 gap-4">
+  <div className="space-y-2">
+    <Label htmlFor="league-cup">Cup Name</Label>
+    <Input
+      id="league-cup"
+      placeholder="e.g., FA Cup, Copa del Rey"
+      value={leagueFormData.league_cup}
+      onChange={(e) => setLeagueFormData({ ...leagueFormData, league_cup: e.target.value })}
+    />
+  </div>
 
-              {/* Description */}
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  placeholder="League description"
-                  value={leagueFormData.league_description}
-                  onChange={(e) => setLeagueFormData({ ...leagueFormData, league_description: e.target.value })}
-                  rows={3}
-                />
+  <div className="space-y-2">
+    <Label htmlFor="league-status">League Status</Label>
+    <Select
+      value={leagueFormData.league_status}
+      onValueChange={(value: 'Coming soon' | 'Live' | 'Completed') => 
+        setLeagueFormData({ ...leagueFormData, league_status: value })
+      }
+    >
+      <SelectTrigger id="league-status">
+        <SelectValue placeholder="Select status" />
+      </SelectTrigger>
+      <SelectContent>
+        {leagueStatusOptions.map((status) => {
+          const Icon = status.icon
+          return (
+            <SelectItem key={status.value} value={status.value}>
+              <div className="flex items-center gap-2">
+                <Icon className="h-4 w-4" />
+                <span>{status.label}</span>
               </div>
-
-              {/* League Status */}
-              <div className="space-y-2">
-                <Label htmlFor="league-status">League Status</Label>
-                <Select
-                  value={leagueFormData.league_status}
-                  onValueChange={(value: 'Coming soon' | 'Live' | 'Completed') => 
-                    setLeagueFormData({ ...leagueFormData, league_status: value })
-                  }
-                >
-                  <SelectTrigger id="league-status">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {leagueStatusOptions.map((status) => {
-                      const Icon = status.icon
-                      return (
-                        <SelectItem key={status.value} value={status.value}>
-                          <div className="flex items-center gap-2">
-                            <Icon className="h-4 w-4" />
-                            <span>{status.label}</span>
-                          </div>
-                        </SelectItem>
-                      )
-                    })}
-                  </SelectContent>
-                </Select>
-              </div>
+            </SelectItem>
+          )
+        })}
+      </SelectContent>
+    </Select>
+  </div>
+</div>
 
               {/* Winner Selection (only shown when status is Completed) */}
               {leagueFormData.league_status === "Completed" && (
@@ -698,14 +779,14 @@ export default function LeaguesTab({ selectedSport }: LeaguesTabProps) {
                 <TableRow>
                   <TableHead>Logo</TableHead>
                   <TableHead>Name</TableHead>
-                  <TableHead>Cup</TableHead>
                   <TableHead>Code</TableHead>
                   <TableHead>Sport</TableHead>
-                  <TableHead>Country</TableHead>
+                  <TableHead>Host Country</TableHead>
                   <TableHead>Clubs</TableHead>
+                  <TableHead>Match Type</TableHead> {/* Added Match Type column */}
                   <TableHead>Status</TableHead>
                   <TableHead>Winner</TableHead>
-                  <TableHead>Active</TableHead> {/* Single column for active status */}
+                  <TableHead>Active</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -749,15 +830,6 @@ export default function LeaguesTab({ selectedSport }: LeaguesTabProps) {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {league.league_cup ? (
-                          <Badge variant="secondary" className="font-normal">
-                            {league.league_cup}
-                          </Badge>
-                        ) : (
-                          "-"
-                        )}
-                      </TableCell>
-                      <TableCell>
                         <Badge variant="outline" className="font-mono">
                           {league.league_code}
                         </Badge>
@@ -772,6 +844,14 @@ export default function LeaguesTab({ selectedSport }: LeaguesTabProps) {
                       </TableCell>
                       <TableCell>
                         {league.number_of_clubs > 0 ? league.number_of_clubs : "-"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant="outline" 
+                          className={`${getMatchTypeColor(league.match_type || 'T20')} font-medium`}
+                        >
+                          {league.match_type || "T20"}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <Badge 
@@ -810,7 +890,6 @@ export default function LeaguesTab({ selectedSport }: LeaguesTabProps) {
                             onCheckedChange={() => handleToggleStatus(league)}
                             aria-label={`Toggle ${league.league_name} active status`}
                           />
-                          
                         </div>
                       </TableCell>
                       <TableCell>

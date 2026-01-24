@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { User, Shield, Edit2, Plus } from "lucide-react"
+import { User, Shield, Edit2, Plus, Trash2 } from "lucide-react"
 import { Admin } from "./types"
 import AddAdminDialog from "./AddAdminDialog"
 import EditAdminDialog from "./EditAdminDialog"
@@ -17,6 +17,7 @@ interface AdminsTabProps {
   onAddAdmin: (admin: { name: string; email: string; role: string; status: "active" | "inactive" }) => Promise<void>
   onEditAdmin: (admin: Admin) => void
   onSaveEdit: (admin: Admin) => Promise<void>
+  onDeleteAdmin: (adminId: string) => Promise<void> // Add this
   fetchAdmins: () => Promise<void>
 }
 
@@ -27,11 +28,13 @@ export default function AdminsTab({
   onAddAdmin,
   onEditAdmin,
   onSaveEdit,
+  onDeleteAdmin, // Add this
   fetchAdmins
 }: AdminsTabProps) {
   const [isAddAdminOpen, setIsAddAdminOpen] = useState(false)
   const [isEditAdminOpen, setIsEditAdminOpen] = useState(false)
   const [currentAdmin, setCurrentAdmin] = useState<Admin | null>(null)
+  const [deletingAdminId, setDeletingAdminId] = useState<string | null>(null)
 
   const handleEditAdmin = (admin: Admin) => {
     if (currentUserRole !== "Super Admin") {
@@ -43,6 +46,15 @@ export default function AdminsTab({
     setIsEditAdminOpen(true)
   }
 
+  const handleDeleteAdmin = async (adminId: string) => {
+    setDeletingAdminId(adminId)
+    try {
+      await onDeleteAdmin(adminId)
+    } finally {
+      setDeletingAdminId(null)
+    }
+  }
+
   const handleSaveEdit = async (updatedAdmin: Admin) => {
     await onSaveEdit(updatedAdmin)
     setIsEditAdminOpen(false)
@@ -51,12 +63,6 @@ export default function AdminsTab({
   // Helper function to get status
   const getStatus = (admin: Admin) => {
     return admin.admin.is_active ? 'active' : 'inactive'
-  }
-
-  // Helper function to get last login (you'll need to add this to your interface if needed)
-  const getLastLogin = (admin: Admin) => {
-    // You might need to fetch this separately or add to your Admin interface
-    return 'Never' // Placeholder
   }
 
   return (
@@ -71,12 +77,17 @@ export default function AdminsTab({
                 <p className="text-sm text-muted-foreground mt-2">Only Super Admins can manage this section</p>
               )}
             </div>
-            {currentUserRole === "Super Admin" && (
-              <Button onClick={() => setIsAddAdminOpen(true)} className="w-full sm:w-auto">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Admin
-              </Button>
-            )}
+            <div className="flex gap-2">
+              {currentUserRole === "Super Admin" && (
+                <>
+                  
+                  <Button onClick={() => setIsAddAdminOpen(true)} className="w-full sm:w-auto">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Admin
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -144,15 +155,37 @@ export default function AdminsTab({
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         {currentUserRole === "Super Admin" ? (
-                          <Button variant="ghost" size="sm" onClick={() => handleEditAdmin(admin)}>
-                            <Edit2 className="h-4 w-4 mr-1" />
-                            Edit
-                          </Button>
+                          <>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleEditAdmin(admin)}
+                            >
+                              <Edit2 className="h-4 w-4 mr-1" />
+                              Edit
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleDeleteAdmin(admin.admin.admin_id)}
+                              disabled={deletingAdminId === admin.admin.admin_id}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              {deletingAdminId === admin.admin.admin_id ? "Deleting..." : "Delete"}
+                            </Button>
+                          </>
                         ) : (
-                          <Button variant="ghost" size="sm" disabled className="opacity-50 cursor-not-allowed">
-                            <Edit2 className="h-4 w-4 mr-1" />
-                            Edit
-                          </Button>
+                          <>
+                            <Button variant="ghost" size="sm" disabled className="opacity-50 cursor-not-allowed">
+                              <Edit2 className="h-4 w-4 mr-1" />
+                              Edit
+                            </Button>
+                            <Button variant="ghost" size="sm" disabled className="opacity-50 cursor-not-allowed text-red-600">
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Delete
+                            </Button>
+                          </>
                         )}
                       </div>
                     </TableCell>
@@ -211,24 +244,42 @@ export default function AdminsTab({
                         <span className="font-medium">Mobile:</span> {admin.admin.phone || "N/A"}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        Last login: {getLastLogin(admin)}
+                        Last login: {admin.admin.last_login_formatted || 'Never'}
                       </div>
                     </div>
                     {currentUserRole === "Super Admin" ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditAdmin(admin)}
-                        className="w-full"
-                      >
-                        <Edit2 className="h-3 w-3 mr-1" />
-                        Edit Admin
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditAdmin(admin)}
+                          className="flex-1"
+                        >
+                          <Edit2 className="h-3 w-3 mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteAdmin(admin.admin.admin_id)}
+                          disabled={deletingAdminId === admin.admin.admin_id}
+                          className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" />
+                          {deletingAdminId === admin.admin.admin_id ? "Deleting..." : "Delete"}
+                        </Button>
+                      </div>
                     ) : (
-                      <Button variant="outline" size="sm" disabled className="w-full opacity-50 bg-transparent">
-                        <Edit2 className="h-3 w-3 mr-1" />
-                        Edit Admin
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" disabled className="flex-1 opacity-50 bg-transparent">
+                          <Edit2 className="h-3 w-3 mr-1" />
+                          Edit
+                        </Button>
+                        <Button variant="outline" size="sm" disabled className="flex-1 opacity-50 bg-transparent text-red-600">
+                          <Trash2 className="h-3 w-3 mr-1" />
+                          Delete
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </div>

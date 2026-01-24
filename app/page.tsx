@@ -12,8 +12,8 @@ import { getSupabase } from "@/lib/supabase/working-client"
 import { useRouter } from "next/navigation"
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("") // Changed to empty string
-  const [password, setPassword] = useState("") // Changed to empty string
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const router = useRouter()
@@ -22,7 +22,6 @@ export default function LoginPage() {
     e.preventDefault()
     setError("")
     
-    // Validate inputs are not empty
     if (!email.trim()) {
       setError("Email is required")
       toast.error("Email is required")
@@ -42,7 +41,6 @@ export default function LoginPage() {
       
       console.log('🔐 Checking admin credentials...')
       
-      // 1. Check if user exists in admins table
       const { data: admin, error: adminError } = await supabase
         .from('admins')
         .select('*')
@@ -54,18 +52,14 @@ export default function LoginPage() {
       }
 
       console.log('✅ Admin found:', admin.email, 'Role:', admin.role)
-      console.log('🔑 Password hash from DB:', admin.password_hash ? 'Exists' : 'Missing')
 
-      // 2. Check if admin is active
       if (!admin.is_active) {
         throw new Error("Account is not active")
       }
 
-      // 3. IMPORTANT: Update your AdminLayout to look for these localStorage keys
       localStorage.setItem('admin_logged_in', 'true')
       localStorage.setItem('admin_email', admin.email)
       
-      // Keep your custom session data too (optional)
       const adminSession = {
         admin_id: admin.admin_id,
         email: admin.email,
@@ -82,7 +76,6 @@ export default function LoginPage() {
         admin_email: localStorage.getItem('admin_email')
       })
 
-      // 4. Update last login time
       await supabase
         .from('admins')
         .update({ 
@@ -93,13 +86,11 @@ export default function LoginPage() {
 
       console.log('✅ Login successful!')
       
-      // Show welcome message
       const welcomeName = admin.full_name || admin.username || admin.email.split('@')[0]
       toast.success(`Welcome back, ${welcomeName}!`)
       
-      // IMPORTANT: Use router.push instead of window.location.href
       router.push('/admin')
-      router.refresh() // This ensures the layout re-renders with new auth state
+      router.refresh()
       
     } catch (error: any) {
       console.error('Login error:', error)
@@ -111,78 +102,100 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4">
-      <Card className="w-full max-w-md border-slate-800 bg-slate-900/50 backdrop-blur">
-        <CardHeader className="space-y-4 text-center">
-          <div className="flex justify-center">
-            <div className="p-3 bg-purple-600/10 rounded-xl border border-purple-600/20">
-              <Trophy className="h-10 w-10 text-purple-500" />
-            </div>
-          </div>
-          <div>
-            <CardTitle className="text-2xl font-bold text-white">Fantasy Sports Admin</CardTitle>
-            <CardDescription className="text-slate-400 mt-2">
-              Sign in to manage your fantasy sports platform
-            </CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {error && (
-            <Alert variant="destructive" className="mb-4 border-red-900/50 bg-red-950/50">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Login Error</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-slate-950">
+      {/* Background Image - Fixed position and sizing */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          backgroundImage: "url('/adminloginbg.png')",
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          backgroundAttachment: 'fixed', // This keeps background fixed during scroll
+        }}
+      ></div>
+      
+      {/* Lighter overlay - Reduced opacity from 95% to 70% */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-950/70 via-slate-900/60 to-slate-950/70"></div>
+      
+      {/* Remove or reduce pattern overlay opacity */}
+      <div 
+        className="absolute inset-0 opacity-[0.02]"
+        style={{
+          backgroundImage: `radial-gradient(circle at 2px 2px, rgba(255,255,255,0.3) 1px, transparent 0)`,
+          backgroundSize: '50px 50px',
+        }}
+      ></div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-slate-300">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="admin@fantasysports.com" // Placeholder remains
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="bg-slate-800/50 border-slate-700 text-white"
-                required
-                disabled={isLoading}
-              />
+      {/* Main Content */}
+      <div className="relative z-10 w-full max-w-md">
+        <Card className="card-custom border-2 backdrop-blur-xl shadow-2xl rounded-2xl">
+          <CardHeader className="space-y-4 text-center">
+            <div>
+              <CardTitle className="text-2xl font-bold text-white">Fantasy Sports Admin</CardTitle>
+              <CardDescription className="text-slate-300 mt-2">
+                Sign in to manage your fantasy sports platform
+              </CardDescription>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-slate-300">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password" // Placeholder remains
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="bg-slate-800/50 border-slate-700 text-white"
-                required
+          </CardHeader>
+          <CardContent>
+            {error && (
+              <Alert variant="destructive" className="mb-4 border-red-900/50 bg-red-950/50 backdrop-blur">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Login Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-slate-300">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="admin@fantasysports.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="bg-slate-800/70 border-slate-700 text-white placeholder:text-slate-500 focus:border-purple-500 focus:ring-purple-500/20"
+                  required
+                  disabled={isLoading}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-slate-300">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="bg-slate-800/70 border-slate-700 text-white placeholder:text-slate-500 focus:border-purple-500 focus:ring-purple-500/20"
+                  required
+                  disabled={isLoading}
+                />
+              </div>
+              <Button 
+                type="submit" 
+                className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-lg shadow-purple-600/20 hover:shadow-purple-600/30 transition-all duration-300" 
                 disabled={isLoading}
-              />
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  "Sign In"
+                )}
+              </Button>
+            </form>
+            
+            <div className="mt-6 text-center space-y-2">
+              <p className="text-xs text-slate-400 mt-4">Only approved admins can access</p>
             </div>
-            <Button 
-              type="submit" 
-              className="w-full bg-purple-600 hover:bg-purple-700 text-white" 
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing in...
-                </>
-              ) : (
-                "Sign In"
-              )}
-            </Button>
-          </form>
-          
-          <div className="mt-6 text-center space-y-2">
-            <p className="text-xs text-slate-500 mt-4">Only approved admins can access</p>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
