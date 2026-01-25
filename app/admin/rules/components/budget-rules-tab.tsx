@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
-import { BudgetRule, MATCH_FORMATS } from "../page"
+import { BudgetRule } from "../page"
 
 interface BudgetRulesTabProps {
   sportName: string
@@ -46,21 +46,44 @@ export default function BudgetRulesTab({
   const [editingRule, setEditingRule] = useState<BudgetRule | null>(null)
   const [isSaving, setIsSaving] = useState(false)
 
+  const isFootball = useMemo(() => sportName.toLowerCase().includes('football'), [sportName])
+  const isCricket = useMemo(() => sportName.toLowerCase().includes('cricket'), [sportName])
+
+  const defaultMatchFormats = useMemo(() => 
+    isFootball 
+      ? ['Standard League Match (90-Minute)'] 
+      : ['T20', 'ODI', 'Test', 'T10'],
+    [isFootball]
+  )
+
   const [ruleForm, setRuleForm] = useState({
     name: "",
     description: "",
     totalBudget: 100,
     minPlayerPrice: 1,
     maxPlayerPrice: 15,
-    matchFormats: ['T20', 'ODI', 'Test', 'T10'] as string[],
+    transferBudget: 5,
+    matchFormats: defaultMatchFormats as string[],
     isActive: true,
-    isLocked: false
+    isLocked: false,
+    displayOrder: 0
   })
 
   const handleOpenDialog = (rule?: BudgetRule) => {
     if (rule) {
       setEditingRule(rule)
-      setRuleForm({ ...rule })
+      setRuleForm({
+        name: rule.name || "",
+        description: rule.description || "",
+        totalBudget: rule.totalBudget || 100,
+        minPlayerPrice: rule.minPlayerPrice || 1,
+        maxPlayerPrice: rule.maxPlayerPrice || 15,
+        transferBudget: rule.transferBudget || 5,
+        matchFormats: rule.matchFormats || defaultMatchFormats,
+        isActive: rule.isActive !== undefined ? rule.isActive : true,
+        isLocked: rule.isLocked !== undefined ? rule.isLocked : false,
+        displayOrder: rule.displayOrder || 0
+      })
     } else {
       setEditingRule(null)
       setRuleForm({
@@ -69,9 +92,11 @@ export default function BudgetRulesTab({
         totalBudget: 100,
         minPlayerPrice: 1,
         maxPlayerPrice: 15,
-        matchFormats: ['T20', 'ODI', 'Test', 'T10'],
+        transferBudget: 5,
+        matchFormats: defaultMatchFormats,
         isActive: true,
-        isLocked: false
+        isLocked: false,
+        displayOrder: rules.length
       })
     }
     setIsDialogOpen(true)
@@ -116,6 +141,14 @@ export default function BudgetRulesTab({
       : [...currentFormats, format]
     setRuleForm({ ...ruleForm, matchFormats: newFormats })
   }
+
+  // Get match formats based on sport
+  const sportMatchFormats = useMemo(() => 
+    isFootball 
+      ? ['Standard League Match (90-Minute)', 'Knockout Match (Cup Format)', 'Extra-Time Match (120-Minute)']
+      : ['T20', 'ODI', 'Test', 'T10'],
+    [isFootball]
+  )
 
   return (
     <div className="space-y-4">
@@ -182,6 +215,14 @@ export default function BudgetRulesTab({
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Max Player Price:</span>
                       <span className="font-medium">${rule.maxPlayerPrice.toFixed(1)}M</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Transfer Budget:</span>
+                      <span className="font-medium">${rule.transferBudget.toFixed(1)}M</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Display Order:</span>
+                      <span className="font-medium">{rule.displayOrder}</span>
                     </div>
                   </div>
                 </div>
@@ -291,22 +332,64 @@ export default function BudgetRulesTab({
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="transfer-budget">Transfer Budget (M)</Label>
+              <Input
+                id="transfer-budget"
+                type="number"
+                value={ruleForm.transferBudget}
+                onChange={(e) => setRuleForm({ ...ruleForm, transferBudget: Number.parseFloat(e.target.value) || 5 })}
+                disabled={isSaving}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="display-order">Display Order</Label>
+              <Input
+                id="display-order"
+                type="number"
+                value={ruleForm.displayOrder}
+                onChange={(e) => setRuleForm({ ...ruleForm, displayOrder: Number.parseInt(e.target.value) || 0 })}
+                disabled={isSaving}
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label>Match Formats</Label>
               <div className="flex flex-wrap gap-2">
-                {MATCH_FORMATS.map((format) => (
+                {sportMatchFormats.map((format) => (
                   <div key={format} className="flex items-center space-x-2">
                     <Checkbox
-                      id={`budget-format-${format}`}
+                      id={`budget-format-${format.replace(/\s+/g, '-').toLowerCase()}`}
                       checked={ruleForm.matchFormats.includes(format)}
                       onCheckedChange={() => handleMatchFormatToggle(format)}
                       disabled={isSaving}
                     />
-                    <Label htmlFor={`budget-format-${format}`} className="text-sm font-normal">
+                    <Label htmlFor={`budget-format-${format.replace(/\s+/g, '-').toLowerCase()}`} className="text-sm font-normal">
                       {format}
                     </Label>
                   </div>
                 ))}
               </div>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="is-active"
+                checked={ruleForm.isActive}
+                onCheckedChange={(checked) => setRuleForm({ ...ruleForm, isActive: checked })}
+                disabled={isSaving}
+              />
+              <Label htmlFor="is-active">Active Rule</Label>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="is-locked"
+                checked={ruleForm.isLocked}
+                onCheckedChange={(checked) => setRuleForm({ ...ruleForm, isLocked: checked })}
+                disabled={isSaving}
+              />
+              <Label htmlFor="is-locked">Lock Rule (Prevent Editing)</Label>
             </div>
           </div>
           
