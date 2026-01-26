@@ -45,7 +45,6 @@ type PlayerStat = {
   runs: number
   balls_faced: number
   wickets: number
-  fantasy_points: number
   maidens: number
   fours: number
   sixes: number
@@ -55,6 +54,13 @@ type PlayerStat = {
   penalty_saves: number
   goals_conceded: number
   overs: number | null
+  economy_rate: number | null
+  strike_rate: number | null
+  catches: number
+  stumpings: number
+  run_outs: number
+  assisted_run_outs: number
+  role: number | null
 }
 
 type MatchResult = {
@@ -186,6 +192,7 @@ export default function ResultsPage() {
   const [players, setPlayers] = useState<Player[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [roles, setRoles] = useState<{position_id: number, sport_id: number, position_name: string, position_code: string}[]>([])
 
   useEffect(() => {
     fetchData()
@@ -201,7 +208,8 @@ export default function ResultsPage() {
         { data: teamsData, error: teamsError },
         { data: sportsData, error: sportsError },
         { data: seasonsData, error: seasonsError },
-        { data: playersData, error: playersError }
+        { data: playersData, error: playersError },
+        { data: rolesData, error: rolesError }
       ] = await Promise.all([
         supabase
           .from('resultboard')
@@ -215,7 +223,8 @@ export default function ResultsPage() {
         supabase.from('teams').select('team_id, team_name, sport_id, league_id, team_short_name, team_code'),
         supabase.from('sports').select('sport_id, sport_name, sport_code, icon_url, is_active, display_order'),
         supabase.from('seasons').select('season_id, season_name, sport_id, year_start, year_end, is_active'),
-        supabase.from('players').select('player_id, player_name, team_id, sport_id, jersey_number, is_active')
+        supabase.from('players').select('player_id, player_name, team_id, sport_id, jersey_number, is_active'),
+        supabase.from('player_positions').select('position_id, sport_id, position_name, position_code').eq('is_active', true)
       ])
 
       if (resultsError) throw resultsError
@@ -223,6 +232,7 @@ export default function ResultsPage() {
       if (sportsError) throw sportsError
       if (seasonsError) throw seasonsError
       if (playersError) throw playersError
+      if (rolesError) throw rolesError
 
       // Fetch player stats for all results
       const resultsWithStats = await Promise.all(
@@ -250,6 +260,7 @@ export default function ResultsPage() {
       setSports(sportsData || [])
       setSeasons(seasonsData || [])
       setPlayers(playersData || [])
+      setRoles(rolesData || [])
     } catch (error: any) {
       console.error("Error fetching data:", error)
       setError(error.message || "Failed to fetch data from database")
@@ -302,6 +313,12 @@ export default function ResultsPage() {
         'Vice-captain'
       ]
     }
+  }
+
+  // Get roles for selected sport
+  const getSportRoles = () => {
+    if (!selectedSportId) return []
+    return roles.filter(role => role.sport_id.toString() === selectedSportId)
   }
 
   // Fetch fixtures when sport and season are selected
@@ -452,44 +469,6 @@ export default function ResultsPage() {
     }
   }
 
-  const calculateFantasyPoints = (playerStat: PlayerStat, sportName: string) => {
-    if (sportName === "Cricket") {
-      return calculateCricketFantasyPoints({
-        runs: playerStat.runs || 0,
-        wickets: playerStat.wickets || 0,
-        balls_faced: playerStat.balls_faced || 0,
-        maidens: playerStat.maidens || 0,
-        fours: playerStat.fours || 0,
-        sixes: playerStat.sixes || 0,
-        runs_conceded: playerStat.runs_conceded || 0,
-        overs: playerStat.overs || 0,
-        yellow_cards: playerStat.yellow_cards || 0,
-        red_cards: playerStat.red_cards || 0,
-        catches: playerStat.fours || 0, // Using fours as catches since catches field removed
-        stumpings: playerStat.sixes || 0, // Using sixes as stumpings
-        run_outs: playerStat.runs_conceded || 0, // Using runs_conceded as run_outs
-        economy_rate: playerStat.overs ? (playerStat.runs_conceded || 0) / playerStat.overs : null
-      })
-    } else {
-      // Football
-      return calculateFootballFantasyPoints({
-        goals: playerStat.goals || 0,
-        assists: playerStat.assists || 0,
-        clean_sheets: playerStat.clean_sheets || 0,
-        position: playerStat.position || 'Forward',
-        minutes_played: playerStat.minutes_played || 0,
-        goals_conceded: playerStat.goals_conceded || 0,
-        yellow_cards: playerStat.yellow_cards || 0,
-        red_cards: playerStat.red_cards || 0,
-        tackles: playerStat.fours || 0, // Using fours as tackles
-        interceptions: playerStat.sixes || 0, // Using sixes as interceptions
-        saves: playerStat.maidens || 0, // Using maidens as saves
-        blocks: playerStat.blocks || 0,
-        penalty_saves: playerStat.penalty_saves || 0
-      })
-    }
-  }
-
   const toggleMatchDetails = (resultId: number) => {
     setExpandedMatch(expandedMatch === resultId ? null : resultId)
   }
@@ -515,62 +494,117 @@ export default function ResultsPage() {
     setFixtures([])
   }
 
-  const openEditResultDialog = (matchResult: MatchResult) => {
+  const openEditResultDialog = async (matchResult: MatchResult) => {
     setEditingMatchId(matchResult.result_id)
     setShowAddResultDialog(true)
-    setFormStep("selectSport")
+    
+    // Start directly at player stats entry for editing
+    setFormStep("enterPlayerStats")
+    
+    // Set basic info
     setSelectedSportId(matchResult.sport_id.toString())
     setSelectedSeasonId(matchResult.season_id.toString())
-    setSelectedFixtureId(null)
-    setHomeScore(matchResult.home_score.toString())
-    setAwayScore(matchResult.away_score.toString())
-
-    // Pre-populate player stats
-    const stats: Record<string, any> = {}
-    const allPlayers = [...(matchResult.home_player_stats || []), ...(matchResult.away_player_stats || [])]
+    setSelectedFixtureId(matchResult.fixture_id)
     
-    // Convert database player stats to custom players
-    const customPlayersData: CustomPlayer[] = allPlayers.map(ps => ({
-      id: `custom_${ps.player_id}`,
-      player_id: ps.player_id,
-      name: ps.player_name,
-      position: ps.position,
-      team: ps.team_id === matchResult.home_team_id ? "home" as const : "away" as const
-    }))
-
-    allPlayers.forEach((ps) => {
-      const playerId = `custom_${ps.player_id}`
+    // Get fixture info
+    try {
+      const { data: fixtureData, error } = await supabase
+        .from('fixtures')
+        .select(`
+          *,
+          home_team:home_team_id(team_name),
+          away_team:away_team_id(team_name)
+        `)
+        .eq('fixture_id', matchResult.fixture_id)
+        .single()
+        
+      if (error) throw error
       
-      // For cricket
-      if (ps.runs !== undefined && ps.runs !== null) stats[`${playerId}_runs`] = ps.runs.toString()
-      if (ps.balls_faced !== undefined && ps.balls_faced !== null) stats[`${playerId}_balls_faced`] = ps.balls_faced.toString()
-      if (ps.wickets !== undefined && ps.wickets !== null) stats[`${playerId}_wickets`] = ps.wickets.toString()
-      if (ps.fours !== undefined && ps.fours !== null) stats[`${playerId}_fours`] = ps.fours.toString()
-      if (ps.sixes !== undefined && ps.sixes !== null) stats[`${playerId}_sixes`] = ps.sixes.toString()
-      if (ps.maidens !== undefined && ps.maidens !== null) stats[`${playerId}_maidens`] = ps.maidens.toString()
-      if (ps.runs_conceded !== undefined && ps.runs_conceded !== null) stats[`${playerId}_runs_conceded`] = ps.runs_conceded.toString()
-      if (ps.overs !== undefined && ps.overs !== null) stats[`${playerId}_overs`] = ps.overs.toString()
-      if (ps.fantasy_points !== undefined && ps.fantasy_points !== null) stats[`${playerId}_fantasy_points`] = ps.fantasy_points.toString()
+      // Create fixture object
+      const fixture: Fixture = {
+        fixture_id: fixtureData.fixture_id,
+        gameweek_id: fixtureData.gameweek_id,
+        season_id: fixtureData.season_id,
+        sport_id: fixtureData.sport_id,
+        home_team_id: fixtureData.home_team_id,
+        away_team_id: fixtureData.away_team_id,
+        kickoff_time: fixtureData.kickoff_time,
+        home_score: fixtureData.home_score,
+        away_score: fixtureData.away_score,
+        fixture_status: fixtureData.fixture_status,
+        is_finished: fixtureData.is_finished,
+        winningteam_id: fixtureData.winningteam_id,
+        home_team_name: fixtureData.home_team?.team_name || matchResult.home_team?.team_name,
+        away_team_name: fixtureData.away_team?.team_name || matchResult.away_team?.team_name,
+        sport_name: sports.find(s => s.sport_id === fixtureData.sport_id)?.sport_name,
+        sport_icon: sports.find(s => s.sport_id === fixtureData.sport_id)?.icon_url,
+        gameweek_name: '', // Add if you have gameweek data
+        gameweek_number: 0,
+        season_name: seasons.find(s => s.season_id === fixtureData.season_id)?.season_name
+      }
       
-      // For football
-      if (ps.goals !== undefined && ps.goals !== null) stats[`${playerId}_goals`] = ps.goals.toString()
-      if (ps.assists !== undefined && ps.assists !== null) stats[`${playerId}_assists`] = ps.assists.toString()
-      if (ps.clean_sheets !== undefined && ps.clean_sheets !== null) stats[`${playerId}_clean_sheets`] = ps.clean_sheets.toString()
-      if (ps.yellow_cards !== undefined && ps.yellow_cards !== null) stats[`${playerId}_yellow_cards`] = ps.yellow_cards.toString()
-      if (ps.red_cards !== undefined && ps.red_cards !== null) stats[`${playerId}_red_cards`] = ps.red_cards.toString()
-      if (ps.minutes_played !== undefined && ps.minutes_played !== null) stats[`${playerId}_minutes_played`] = ps.minutes_played.toString()
-      if (ps.goals_conceded !== undefined && ps.goals_conceded !== null) stats[`${playerId}_goals_conceded`] = ps.goals_conceded.toString()
-      if (ps.blocks !== undefined && ps.blocks !== null) stats[`${playerId}_blocks`] = ps.blocks.toString()
-      if (ps.penalty_saves !== undefined && ps.penalty_saves !== null) stats[`${playerId}_penalty_saves`] = ps.penalty_saves.toString()
-    })
+      // Store in fixtures array
+      setFixtures([fixture])
+      
+      // Set scores
+      setHomeScore(matchResult.home_score.toString())
+      setAwayScore(matchResult.away_score.toString())
+      
+      // Pre-populate player stats
+      const stats: Record<string, any> = {}
+      const allPlayers = [...(matchResult.home_player_stats || []), ...(matchResult.away_player_stats || [])]
+      
+      // Convert database player stats to custom players
+      const customPlayersData: CustomPlayer[] = allPlayers.map(ps => ({
+        id: `existing_${ps.player_id}`,
+        player_id: ps.player_id,
+        name: ps.player_name,
+        position: ps.position,
+        team: ps.team_id === matchResult.home_team_id ? "home" as const : "away" as const
+      }))
 
-    setCustomPlayers(customPlayersData)
-    setPlayerStats(stats)
-    setValidationError("")
-    setSelectedTeam("home")
-    
-    // Fetch fixtures for this sport and season
-    fetchFixtures(matchResult.sport_id.toString(), matchResult.season_id.toString())
+      // Set player stats
+      allPlayers.forEach((ps) => {
+        const playerId = `existing_${ps.player_id}`
+        
+        // For cricket
+        if (ps.runs !== undefined && ps.runs !== null) stats[`${playerId}_runs`] = ps.runs.toString()
+        if (ps.balls_faced !== undefined && ps.balls_faced !== null) stats[`${playerId}_balls_faced`] = ps.balls_faced.toString()
+        if (ps.wickets !== undefined && ps.wickets !== null) stats[`${playerId}_wickets`] = ps.wickets.toString()
+        if (ps.fours !== undefined && ps.fours !== null) stats[`${playerId}_fours`] = ps.fours.toString()
+        if (ps.sixes !== undefined && ps.sixes !== null) stats[`${playerId}_sixes`] = ps.sixes.toString()
+        if (ps.maidens !== undefined && ps.maidens !== null) stats[`${playerId}_maidens`] = ps.maidens.toString()
+        if (ps.runs_conceded !== undefined && ps.runs_conceded !== null) stats[`${playerId}_runs_conceded`] = ps.runs_conceded.toString()
+        if (ps.overs !== undefined && ps.overs !== null) stats[`${playerId}_overs`] = ps.overs.toString()
+        if (ps.catches !== undefined && ps.catches !== null) stats[`${playerId}_catches`] = ps.catches.toString()
+        if (ps.stumpings !== undefined && ps.stumpings !== null) stats[`${playerId}_stumpings`] = ps.stumpings.toString()
+        if (ps.run_outs !== undefined && ps.run_outs !== null) stats[`${playerId}_run_outs`] = ps.run_outs.toString()
+        if (ps.assisted_run_outs !== undefined && ps.assisted_run_outs !== null) stats[`${playerId}_assisted_run_outs`] = ps.assisted_run_outs.toString()
+        if (ps.economy_rate !== undefined && ps.economy_rate !== null) stats[`${playerId}_economy_rate`] = ps.economy_rate.toString()
+        if (ps.strike_rate !== undefined && ps.strike_rate !== null) stats[`${playerId}_strike_rate`] = ps.strike_rate.toString()
+        if (ps.role !== undefined && ps.role !== null) stats[`${playerId}_role`] = ps.role.toString()
+        
+        // For football
+        if (ps.goals !== undefined && ps.goals !== null) stats[`${playerId}_goals`] = ps.goals.toString()
+        if (ps.assists !== undefined && ps.assists !== null) stats[`${playerId}_assists`] = ps.assists.toString()
+        if (ps.clean_sheets !== undefined && ps.clean_sheets !== null) stats[`${playerId}_clean_sheets`] = ps.clean_sheets.toString()
+        if (ps.yellow_cards !== undefined && ps.yellow_cards !== null) stats[`${playerId}_yellow_cards`] = ps.yellow_cards.toString()
+        if (ps.red_cards !== undefined && ps.red_cards !== null) stats[`${playerId}_red_cards`] = ps.red_cards.toString()
+        if (ps.minutes_played !== undefined && ps.minutes_played !== null) stats[`${playerId}_minutes_played`] = ps.minutes_played.toString()
+        if (ps.goals_conceded !== undefined && ps.goals_conceded !== null) stats[`${playerId}_goals_conceded`] = ps.goals_conceded.toString()
+        if (ps.blocks !== undefined && ps.blocks !== null) stats[`${playerId}_blocks`] = ps.blocks.toString()
+        if (ps.penalty_saves !== undefined && ps.penalty_saves !== null) stats[`${playerId}_penalty_saves`] = ps.penalty_saves.toString()
+      })
+
+      setCustomPlayers(customPlayersData)
+      setPlayerStats(stats)
+      setValidationError("")
+      setSelectedTeam("home")
+      
+    } catch (error: any) {
+      console.error("Error loading fixture data:", error)
+      setValidationError("Failed to load match data")
+    }
   }
 
   const proceedToSeasonSelect = () => {
@@ -778,7 +812,6 @@ export default function ResultsPage() {
           .update({
             home_score: homeTeamScore,
             away_score: awayTeamScore,
-            status: 'completed',
             updated_at: new Date().toISOString()
           })
           .eq('result_id', editingMatchId)
@@ -787,10 +820,12 @@ export default function ResultsPage() {
         resultId = editingMatchId
 
         // Delete existing player stats
-        await supabase
+        const { error: deleteError } = await supabase
           .from('player_match_stats')
           .delete()
           .eq('result_id', editingMatchId)
+
+        if (deleteError) throw deleteError
       } else {
         // Check if result already exists for this fixture
         const { data: existingResult, error: checkError } = await supabase
@@ -839,7 +874,7 @@ export default function ResultsPage() {
           team_id: player.team === 'home' ? fixture.home_team_id : fixture.away_team_id,
           position: player.position, // This comes from the form dropdown
           sport_id: fixture.sport_id,
-          fantasy_points: 0
+          role: playerStats[`${player.id}_role`] ? Number.parseInt(playerStats[`${player.id}_role`]) : null
         }
 
         let stats: any = { ...baseStats }
@@ -854,6 +889,14 @@ export default function ResultsPage() {
           const runs_conceded = Number.parseInt(playerStats[`${player.id}_runs_conceded`] || "0")
           const overs = playerStats[`${player.id}_overs`] ? 
             Number.parseFloat(playerStats[`${player.id}_overs`]) : null
+          const catches = Number.parseInt(playerStats[`${player.id}_catches`] || "0")
+          const stumpings = Number.parseInt(playerStats[`${player.id}_stumpings`] || "0")
+          const run_outs = Number.parseInt(playerStats[`${player.id}_run_outs`] || "0")
+          const assisted_run_outs = Number.parseInt(playerStats[`${player.id}_assisted_run_outs`] || "0")          
+          const economy_rate = playerStats[`${player.id}_economy_rate`] ? 
+            Number.parseFloat(playerStats[`${player.id}_economy_rate`]) : null
+          const strike_rate = playerStats[`${player.id}_strike_rate`] ? 
+            Number.parseFloat(playerStats[`${player.id}_strike_rate`]) : null
           
           stats = {
             ...stats,
@@ -865,22 +908,12 @@ export default function ResultsPage() {
             maidens,
             runs_conceded,
             overs,
-            fantasy_points: calculateCricketFantasyPoints({
-              runs,
-              wickets,
-              balls_faced,
-              maidens,
-              fours,
-              sixes,
-              runs_conceded,
-              overs: overs || 0,
-              yellow_cards: Number.parseInt(playerStats[`${player.id}_yellow_cards`] || "0"),
-              red_cards: Number.parseInt(playerStats[`${player.id}_red_cards`] || "0"),
-              catches: fours, // Using fours as catches
-              stumpings: sixes, // Using sixes as stumpings
-              run_outs: runs_conceded, // Using runs_conceded as run_outs
-              economy_rate: overs ? runs_conceded / overs : null
-            })
+            catches,
+            stumpings,
+            run_outs,
+            assisted_run_outs,
+            economy_rate,
+            strike_rate
           }
         } else {
           // Football
@@ -889,6 +922,12 @@ export default function ResultsPage() {
           const clean_sheets = Number.parseInt(playerStats[`${player.id}_clean_sheets`] || "0")
           const minutes_played = Number.parseInt(playerStats[`${player.id}_minutes_played`] || "0")
           const goals_conceded = Number.parseInt(playerStats[`${player.id}_goals_conceded`] || "0")
+          const blocks = Number.parseInt(playerStats[`${player.id}_blocks`] || "0")
+          const penalty_saves = Number.parseInt(playerStats[`${player.id}_penalty_saves`] || "0")
+          const catches = Number.parseInt(playerStats[`${player.id}_catches`] || "0")
+          const stumpings = Number.parseInt(playerStats[`${player.id}_stumpings`] || "0")
+          const run_outs = Number.parseInt(playerStats[`${player.id}_run_outs`] || "0")
+          const assisted_run_outs = Number.parseInt(playerStats[`${player.id}_assisted_run_outs`] || "0")
           
           stats = {
             ...stats,
@@ -899,23 +938,12 @@ export default function ResultsPage() {
             goals_conceded,
             yellow_cards: Number.parseInt(playerStats[`${player.id}_yellow_cards`] || "0"),
             red_cards: Number.parseInt(playerStats[`${player.id}_red_cards`] || "0"),
-            blocks: Number.parseInt(playerStats[`${player.id}_blocks`] || "0"),
-            penalty_saves: Number.parseInt(playerStats[`${player.id}_penalty_saves`] || "0"),
-            fantasy_points: calculateFootballFantasyPoints({
-              goals,
-              assists,
-              clean_sheets,
-              position: player.position || 'Forward',
-              minutes_played,
-              goals_conceded,
-              yellow_cards: Number.parseInt(playerStats[`${player.id}_yellow_cards`] || "0"),
-              red_cards: Number.parseInt(playerStats[`${player.id}_red_cards`] || "0"),
-              tackles: Number.parseInt(playerStats[`${player.id}_tackles`] || "0"),
-              interceptions: Number.parseInt(playerStats[`${player.id}_interceptions`] || "0"),
-              saves: Number.parseInt(playerStats[`${player.id}_saves`] || "0"),
-              blocks: Number.parseInt(playerStats[`${player.id}_blocks`] || "0"),
-              penalty_saves: Number.parseInt(playerStats[`${player.id}_penalty_saves`] || "0")
-            })
+            blocks,
+            penalty_saves,
+            catches,
+            stumpings,
+            run_outs,
+            assisted_run_outs
           }
         }
 
@@ -989,6 +1017,7 @@ export default function ResultsPage() {
               <TableRow>
                 <TableHead>Player</TableHead>
                 <TableHead>Position</TableHead>
+                <TableHead>Role</TableHead>
                 {sport?.sport_name === "Cricket" ? (
                   <>
                     <TableHead className="text-right">Runs</TableHead>
@@ -998,7 +1027,13 @@ export default function ResultsPage() {
                     <TableHead className="text-right">6s</TableHead>
                     <TableHead className="text-right">Overs</TableHead>
                     <TableHead className="text-right">Maiden</TableHead>
-                    <TableHead className="text-right">Runs Con.</TableHead>
+                    <TableHead className="text-right">Runs.Con</TableHead>
+                    <TableHead className="text-right">Catch</TableHead>
+                    <TableHead className="text-right">Stumping</TableHead>
+                    <TableHead className="text-right">Direct.RO</TableHead>
+                    <TableHead className="text-right">Assisted.RO</TableHead>
+                    <TableHead className="text-right">Econ.Rate</TableHead>
+                    <TableHead className="text-right">S.Rate</TableHead>
                   </>
                 ) : (
                   <>
@@ -1008,47 +1043,68 @@ export default function ResultsPage() {
                     <TableHead className="text-right">Mins</TableHead>
                     <TableHead className="text-right">YC</TableHead>
                     <TableHead className="text-right">RC</TableHead>
+                    <TableHead className="text-right">Catch</TableHead>
+                    <TableHead className="text-right">Stumping</TableHead>
+                    <TableHead className="text-right">D. Run-out</TableHead>
+                    <TableHead className="text-right">A. Run-out</TableHead>
+                    <TableHead className="text-right">Blocks</TableHead>
+                    <TableHead className="text-right">Pen. Saves</TableHead>
                   </>
                 )}
-                <TableHead className="text-right font-semibold">Fantasy Points</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {teamPlayerStats.map((playerStat) => (
-                <TableRow key={playerStat.stat_id}>
-                  <TableCell className="font-medium">{playerStat.player_name}</TableCell>
-                  <TableCell>{playerStat.position}</TableCell>
-                  {sport?.sport_name === "Cricket" ? (
-                    <>
-                      <TableCell className="text-right">{playerStat.runs || 0}</TableCell>
-                      <TableCell className="text-right">{playerStat.balls_faced || 0}</TableCell>
-                      <TableCell className="text-right">{playerStat.wickets || 0}</TableCell>
-                      <TableCell className="text-right">{playerStat.fours || 0}</TableCell>
-                      <TableCell className="text-right">{playerStat.sixes || 0}</TableCell>
-                      <TableCell className="text-right">{playerStat.overs || 0}</TableCell>
-                      <TableCell className="text-right">{playerStat.maidens || 0}</TableCell>
-                      <TableCell className="text-right">{playerStat.runs_conceded || 0}</TableCell>
-                    </>
-                  ) : (
-                    <>
-                      <TableCell className="text-right">{playerStat.goals || 0}</TableCell>
-                      <TableCell className="text-right">{playerStat.assists || 0}</TableCell>
-                      <TableCell className="text-right">
-                        {(playerStat.position === "Goalkeeper" || playerStat.position === "Defender") &&
-                        playerStat.clean_sheets
-                          ? "Yes"
-                          : "No"}
-                      </TableCell>
-                      <TableCell className="text-right">{playerStat.minutes_played || 0}</TableCell>
-                      <TableCell className="text-right">{playerStat.yellow_cards || 0}</TableCell>
-                      <TableCell className="text-right">{playerStat.red_cards || 0}</TableCell>
-                    </>
-                  )}
-                  <TableCell className="text-right font-semibold">
-                    {calculateFantasyPoints(playerStat, sport?.sport_name || "")}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {teamPlayerStats.map((playerStat) => {
+                // Get role name
+                const role = roles.find(r => r.position_id === playerStat.role)
+                const roleName = role?.position_name || ''
+
+                return (
+                  <TableRow key={playerStat.stat_id}>
+                    <TableCell className="font-medium">{playerStat.player_name}</TableCell>
+                    <TableCell>{playerStat.position}</TableCell>
+                    <TableCell>{roleName}</TableCell>
+                    {sport?.sport_name === "Cricket" ? (
+                      <>
+                        <TableCell className="text-right">{playerStat.runs || 0}</TableCell>
+                        <TableCell className="text-right">{playerStat.balls_faced || 0}</TableCell>
+                        <TableCell className="text-right">{playerStat.wickets || 0}</TableCell>
+                        <TableCell className="text-right">{playerStat.fours || 0}</TableCell>
+                        <TableCell className="text-right">{playerStat.sixes || 0}</TableCell>
+                        <TableCell className="text-right">{playerStat.overs || 0}</TableCell>
+                        <TableCell className="text-right">{playerStat.maidens || 0}</TableCell>
+                        <TableCell className="text-right">{playerStat.runs_conceded || 0}</TableCell>
+                        <TableCell className="text-right">{playerStat.catches || 0}</TableCell>
+                        <TableCell className="text-right">{playerStat.stumpings || 0}</TableCell>
+                        <TableCell className="text-right">{playerStat.run_outs || 0}</TableCell>
+                        <TableCell className="text-right">{playerStat.assisted_run_outs || 0}</TableCell>
+                        <TableCell className="text-right">{playerStat.economy_rate?.toFixed(2) || '0.00'}</TableCell>
+                        <TableCell className="text-right">{playerStat.strike_rate?.toFixed(2) || '0.00'}</TableCell>
+                      </>
+                    ) : (
+                      <>
+                        <TableCell className="text-right">{playerStat.goals || 0}</TableCell>
+                        <TableCell className="text-right">{playerStat.assists || 0}</TableCell>
+                        <TableCell className="text-right">
+                          {(playerStat.position === "Goalkeeper" || playerStat.position === "Defender") &&
+                          playerStat.clean_sheets
+                            ? "Yes"
+                            : "No"}
+                        </TableCell>
+                        <TableCell className="text-right">{playerStat.minutes_played || 0}</TableCell>
+                        <TableCell className="text-right">{playerStat.yellow_cards || 0}</TableCell>
+                        <TableCell className="text-right">{playerStat.red_cards || 0}</TableCell>
+                        <TableCell className="text-right">{playerStat.catches || 0}</TableCell>
+                        <TableCell className="text-right">{playerStat.stumpings || 0}</TableCell>
+                        <TableCell className="text-right">{playerStat.run_outs || 0}</TableCell>
+                        <TableCell className="text-right">{playerStat.assisted_run_outs || 0}</TableCell>
+                        <TableCell className="text-right">{playerStat.blocks || 0}</TableCell>
+                        <TableCell className="text-right">{playerStat.penalty_saves || 0}</TableCell>
+                      </>
+                    )}
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </div>
@@ -1238,18 +1294,71 @@ export default function ResultsPage() {
           <DialogHeader>
             <DialogTitle>{editingMatchId ? "Edit Match Result" : "Add Match Result"}</DialogTitle>
             <DialogDescription>
-              {formStep === "selectSport" && "Select a sport type"}
-              {formStep === "selectSeason" && "Select a season"}
-              {formStep === "selectMatch" && "Select a completed match to add result"}
-              {formStep === "enterScores" && "Enter the final scores for both teams"}
-              {formStep === "enterPlayerStats" &&
-                "Enter player statistics for both teams. Stats must match the final scores."}
+              {editingMatchId 
+                ? "Edit the match result and player statistics" 
+                : (formStep === "selectSport" && "Select a sport type") ||
+                  (formStep === "selectSeason" && "Select a season") ||
+                  (formStep === "selectMatch" && "Select a completed match to add result") ||
+                  (formStep === "enterScores" && "Enter the final scores for both teams") ||
+                  (formStep === "enterPlayerStats" && "Enter player statistics for both teams. Stats must match the final scores.")
+              }
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Step 1: Select Sport */}
-            {formStep === "selectSport" && (
+            {/* EDIT MODE - Show simplified match info */}
+            {editingMatchId && formStep === "enterPlayerStats" && selectedFixture && (
+              <div className="p-4 bg-muted rounded-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="font-semibold text-lg">
+                      {selectedFixture.home_team_name} vs {selectedFixture.away_team_name}
+                    </p>
+                    <div className="flex items-center gap-4 mt-1">
+                      <Badge variant="secondary">
+                        {sports.find(s => s.sport_id.toString() === selectedSportId)?.sport_name}
+                      </Badge>
+                      <span className="text-sm text-muted-foreground">
+                        {formatDate(selectedFixture.kickoff_time)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-muted-foreground mb-1">Final Score</p>
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          min="0"
+                          value={homeScore}
+                          onChange={(e) => setHomeScore(e.target.value)}
+                          className="w-20 text-center"
+                        />
+                        <Label className="text-xs absolute -bottom-5 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
+                          {selectedFixture.home_team_name}
+                        </Label>
+                      </div>
+                      <span className="font-bold text-xl">-</span>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          min="0"
+                          value={awayScore}
+                          onChange={(e) => setAwayScore(e.target.value)}
+                          className="w-20 text-center"
+                        />
+                        <Label className="text-xs absolute -bottom-5 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
+                          {selectedFixture.away_team_name}
+                        </Label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Step 1: Select Sport (Only for ADD mode) */}
+            {!editingMatchId && formStep === "selectSport" && (
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>Select Sport *</Label>
@@ -1283,8 +1392,8 @@ export default function ResultsPage() {
               </div>
             )}
 
-            {/* Step 2: Select Season */}
-            {formStep === "selectSeason" && (
+            {/* Step 2: Select Season (Only for ADD mode) */}
+            {!editingMatchId && formStep === "selectSeason" && (
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>Select Season *</Label>
@@ -1322,8 +1431,8 @@ export default function ResultsPage() {
               </div>
             )}
 
-            {/* Step 3: Select Match */}
-            {formStep === "selectMatch" && selectedSportId && selectedSeasonId && (
+            {/* Step 3: Select Match (Only for ADD mode) */}
+            {!editingMatchId && formStep === "selectMatch" && selectedSportId && selectedSeasonId && (
               <div className="space-y-4">
                 <div className="p-4 bg-muted rounded-lg">
                   <div className="flex items-center justify-between">
@@ -1401,8 +1510,8 @@ export default function ResultsPage() {
               </div>
             )}
 
-            {/* Step 4: Enter Scores */}
-            {formStep === "enterScores" && selectedFixture && (
+            {/* Step 4: Enter Scores (Only for ADD mode) */}
+            {!editingMatchId && formStep === "enterScores" && selectedFixture && (
               <div className="space-y-4">
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="font-semibold">
@@ -1447,24 +1556,27 @@ export default function ResultsPage() {
               </div>
             )}
 
-            {/* Step 5: Enter Player Stats */}
-            {formStep === "enterPlayerStats" && selectedFixture && (
+            {/* Player Stats Section (Shows for both edit and add modes) */}
+            {(formStep === "enterPlayerStats" || editingMatchId) && selectedFixture && (
               <div className="space-y-6">
-                <div className="p-4 bg-muted rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <p className="font-semibold">
-                      {selectedFixture.home_team_name} vs {selectedFixture.away_team_name}
-                    </p>
-                    <div className="text-right">
-                      <p className="text-sm text-muted-foreground">Final Score</p>
-                      <p className="text-2xl font-bold">
-                        {homeScore} - {awayScore}
+                {/* Only show this section header in ADD mode, EDIT mode shows it above */}
+                {!editingMatchId && (
+                  <div className="p-4 bg-muted rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <p className="font-semibold">
+                        {selectedFixture.home_team_name} vs {selectedFixture.away_team_name}
                       </p>
+                      <div className="text-right">
+                        <p className="text-sm text-muted-foreground">Final Score</p>
+                        <p className="text-2xl font-bold">
+                          {homeScore} - {awayScore}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
-                {/* Team Selector */}
+                {/* Team Selector - Show for both modes */}
                 <div className="flex gap-2 border-b">
                   <Button
                     variant={selectedTeam === "home" ? "default" : "ghost"}
@@ -1540,18 +1652,22 @@ export default function ResultsPage() {
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs">Position/Role *</Label>
-                        <select
+                        <Select
                           value={newPlayerPosition}
-                          onChange={(e) => setNewPlayerPosition(e.target.value)}
-                          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors"
+                          onValueChange={setNewPlayerPosition}
                         >
-                          <option value="">Select position</option>
-                          {getSportPositions(sports.find(s => s.sport_id === selectedFixture?.sport_id)?.sport_name).map(pos => (
-                            <option key={pos} value={pos}>
-                              {pos}
-                            </option>
-                          ))}
-                        </select>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select position" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <option value="">Select position</option>
+                            {getSportPositions(sports.find(s => s.sport_id === selectedFixture?.sport_id)?.sport_name).map(pos => (
+                              <SelectItem key={pos} value={pos}>
+                                {pos}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -1580,6 +1696,7 @@ export default function ResultsPage() {
                   {(() => {
                     const sport = sports.find(s => s.sport_id === selectedFixture.sport_id)
                     const teamCustomPlayers = customPlayers.filter((cp) => cp.team === selectedTeam)
+                    const sportRoles = getSportRoles()
 
                     return teamCustomPlayers.length > 0 ? (
                       teamCustomPlayers.map((player) => (
@@ -1590,22 +1707,46 @@ export default function ResultsPage() {
                               <div className="flex items-center gap-2 mt-1">
                                 {/* Position Selector */}
                                 <div className="w-48">
-                                  <select
+                                  <Select
                                     value={player.position}
-                                    onChange={(e) => {
+                                    onValueChange={(value) => {
                                       const updatedPlayers = customPlayers.map(p =>
-                                        p.id === player.id ? { ...p, position: e.target.value } : p
+                                        p.id === player.id ? { ...p, position: value } : p
                                       )
                                       setCustomPlayers(updatedPlayers)
                                     }}
-                                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors"
                                   >
-                                    {getSportPositions(sports.find(s => s.sport_id === selectedFixture?.sport_id)?.sport_name).map(pos => (
-                                      <option key={pos} value={pos}>
-                                        {pos}
-                                      </option>
-                                    ))}
-                                  </select>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select position" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {getSportPositions(sports.find(s => s.sport_id === selectedFixture?.sport_id)?.sport_name).map(pos => (
+                                        <SelectItem key={pos} value={pos}>
+                                          {pos}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                {/* Role Selector */}
+                                <div className="w-48">
+                                  <Select
+                                    value={playerStats[`${player.id}_role`] || ""}
+                                    onValueChange={(value) =>
+                                      setPlayerStats({ ...playerStats, [`${player.id}_role`]: value })
+                                    }
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select role" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {sportRoles.map(role => (
+                                        <SelectItem key={role.position_id} value={role.position_id.toString()}>
+                                          {role.position_name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
                                 </div>
                                 {player.jersey_number && (
                                   <Badge variant="secondary">#{player.jersey_number}</Badge>
@@ -1623,7 +1764,7 @@ export default function ResultsPage() {
                           </div>
 
                           {sport?.sport_name === "Cricket" ? (
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                               <div className="space-y-1">
                                 <Label className="text-xs">Runs</Label>
                                 <Input
@@ -1723,20 +1864,80 @@ export default function ResultsPage() {
                                 />
                               </div>
                               <div className="space-y-1">
-                                <Label className="text-xs">Fantasy Points</Label>
+                                <Label className="text-xs">Catch</Label>
                                 <Input
                                   type="number"
                                   min="0"
-                                  value={playerStats[`${player.id}_fantasy_points`] || ""}
+                                  value={playerStats[`${player.id}_catches`] || ""}
                                   onChange={(e) =>
-                                    setPlayerStats({ ...playerStats, [`${player.id}_fantasy_points`]: e.target.value })
+                                    setPlayerStats({ ...playerStats, [`${player.id}_catches`]: e.target.value })
                                   }
                                   placeholder="0"
                                 />
                               </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Stumping</Label>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  value={playerStats[`${player.id}_stumpings`] || ""}
+                                  onChange={(e) =>
+                                    setPlayerStats({ ...playerStats, [`${player.id}_stumpings`]: e.target.value })
+                                  }
+                                  placeholder="0"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Direct Run-out</Label>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  value={playerStats[`${player.id}_run_outs`] || ""}
+                                  onChange={(e) =>
+                                    setPlayerStats({ ...playerStats, [`${player.id}_run_outs`]: e.target.value })
+                                  }
+                                  placeholder="0"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Assisted Run-out</Label>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  value={playerStats[`${player.id}_assisted_run_outs`] || ""}
+                                  onChange={(e) =>
+                                    setPlayerStats({ ...playerStats, [`${player.id}_assisted_run_outs`]: e.target.value })
+                                  }
+                                  placeholder="0"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Economy Rate</Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={playerStats[`${player.id}_economy_rate`] || ""}
+                                  onChange={(e) =>
+                                    setPlayerStats({ ...playerStats, [`${player.id}_economy_rate`]: e.target.value })
+                                  }
+                                  placeholder="0.00"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Strike Rate</Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={playerStats[`${player.id}_strike_rate`] || ""}
+                                  onChange={(e) =>
+                                    setPlayerStats({ ...playerStats, [`${player.id}_strike_rate`]: e.target.value })
+                                  }
+                                  placeholder="0.00"
+                                />
+                              </div>
                             </div>
                           ) : (
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                               <div className="space-y-1">
                                 <Label className="text-xs">Goals</Label>
                                 <Input
@@ -1848,6 +2049,54 @@ export default function ResultsPage() {
                                   placeholder="0"
                                 />
                               </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Catch</Label>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  value={playerStats[`${player.id}_catches`] || ""}
+                                  onChange={(e) =>
+                                    setPlayerStats({ ...playerStats, [`${player.id}_catches`]: e.target.value })
+                                  }
+                                  placeholder="0"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Stumping</Label>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  value={playerStats[`${player.id}_stumpings`] || ""}
+                                  onChange={(e) =>
+                                    setPlayerStats({ ...playerStats, [`${player.id}_stumpings`]: e.target.value })
+                                  }
+                                  placeholder="0"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Direct Run-out</Label>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  value={playerStats[`${player.id}_run_outs`] || ""}
+                                  onChange={(e) =>
+                                    setPlayerStats({ ...playerStats, [`${player.id}_run_outs`]: e.target.value })
+                                  }
+                                  placeholder="0"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Assisted Run-out</Label>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  value={playerStats[`${player.id}_assisted_run_outs`] || ""}
+                                  onChange={(e) =>
+                                    setPlayerStats({ ...playerStats, [`${player.id}_assisted_run_outs`]: e.target.value })
+                                  }
+                                  placeholder="0"
+                                />
+                              </div>
                             </div>
                           )}
                         </div>
@@ -1872,7 +2121,8 @@ export default function ResultsPage() {
           </div>
 
           <DialogFooter className="gap-2">
-            {formStep !== "selectSport" && (
+            {/* Back button - only show in ADD mode */}
+            {formStep !== "selectSport" && !editingMatchId && (
               <Button
                 variant="outline"
                 onClick={() => {
@@ -1886,31 +2136,36 @@ export default function ResultsPage() {
                 Back
               </Button>
             )}
+            
             <Button variant="outline" onClick={() => setShowAddResultDialog(false)}>
               Cancel
             </Button>
-            {formStep === "selectSport" && (
+            
+            {/* Next/Save buttons */}
+            {formStep === "selectSport" && !editingMatchId && (
               <Button onClick={proceedToSeasonSelect} disabled={!selectedSportId}>
                 Next: Select Season
               </Button>
             )}
-            {formStep === "selectSeason" && (
+            {formStep === "selectSeason" && !editingMatchId && (
               <Button onClick={proceedToMatchSelect} disabled={!selectedSeasonId}>
                 Next: Select Match
               </Button>
             )}
-            {formStep === "selectMatch" && (
+            {formStep === "selectMatch" && !editingMatchId && (
               <Button onClick={proceedToScoreEntry} disabled={!selectedFixtureId || fixtures.length === 0}>
                 Next: Enter Scores
               </Button>
             )}
-            {formStep === "enterScores" && (
+            {formStep === "enterScores" && !editingMatchId && (
               <Button onClick={proceedToPlayerStats}>
                 Next: Enter Player Stats
               </Button>
             )}
-            {formStep === "enterPlayerStats" && (
-              <Button onClick={handleSaveMatchResult}>{editingMatchId ? "Update Result" : "Save Result"}</Button>
+            {(formStep === "enterPlayerStats" || editingMatchId) && (
+              <Button onClick={handleSaveMatchResult}>
+                {editingMatchId ? "Update Result" : "Save Result"}
+              </Button>
             )}
           </DialogFooter>
         </DialogContent>
