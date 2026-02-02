@@ -255,7 +255,11 @@ export default function SystemValidationPage() {
                                 ❌ No teams - Go to <button onClick={() => router.push('/admin/teams')} className="underline">Teams</button>
                               </p>
                             )}
-                            {!
+                            {!league.has_players && (
+                              <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                                ❌ No players - Go to <button onClick={() => router.push('/admin/players')} className="underline">Players</button>
+                              </p>
+                            )}
                             {!league.has_validation_rules && league.has_budget_rules && (
                               <div className="flex items-center justify-between">
                                 <p className="text-sm text-yellow-800 dark:text-yellow-200">
@@ -269,10 +273,6 @@ export default function SystemValidationPage() {
                                   Create Rules
                                 </Button>
                               </div>
-                            )}league.has_players && (
-                              <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                                ❌ No players - Go to <button onClick={() => router.push('/admin/players')} className="underline">Players</button>
-                              </p>
                             )}
                           </div>
                         </div>
