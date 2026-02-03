@@ -783,7 +783,7 @@ export default function LeaguesTab({ selectedSport }: LeaguesTabProps) {
                   <TableHead>Sport</TableHead>
                   <TableHead>Host Country</TableHead>
                   <TableHead>Clubs</TableHead>
-                  <TableHead>Match Type</TableHead> {/* Added Match Type column */}
+                  <TableHead>Match Type</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Winner</TableHead>
                   <TableHead>Active</TableHead>

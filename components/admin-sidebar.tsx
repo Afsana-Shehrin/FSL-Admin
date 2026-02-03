@@ -15,6 +15,7 @@ import {
   X,
   Menu,
   User,
+  Sliders,
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
@@ -33,9 +34,9 @@ const navItems = [
   { href: "/admin/leagues", label: "Leagues & Seasons", icon: Shield },
   { href: "/admin/teams", label: "Teams", icon: Users },
   { href: "/admin/players", label: "Players", icon: Users },
+  { href: "/admin/team-configuration", label: "Team Configuration", icon: Sliders },
   { href: "/admin/fixtures", label: "Fixtures", icon: Calendar },
   { href: "/admin/results", label: "Results Board", icon: ClipboardList },
-  { href: "/admin/fantasy-points", label: "Fantasy Points", icon: Trophy },
   { href: "/admin/rules", label: "Rules", icon: FileText },
   { href: "/admin/users", label: "Users", icon: Users },
  // { href: "/admin/logs", label: "Activity Logs", icon: FileText },

@@ -18,15 +18,10 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
-import { createClient } from '@supabase/supabase-js'
+import { getSupabase } from '@/lib/supabase/working-client'
 
 // Initialize Supabase client
-const supabaseUrl = 'https://kfbrjmfbunhrdqfavvjw.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmYnJqbWZidW5ocmRxZmF2dmp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU4MjEyODEsImV4cCI6MjA4MTM5NzI4MX0.u1Kuram-0SVjiOcUQq5iSO7J_Ul8gos9t9nME01c52E'
-const supabaseServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmYnJqbWZidW5ocmRxZmF2dmp3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTgyMTI4MSwiZXhwIjoyMDgxMzk3MjgxfQ.s1IYBZfUbAn5kvLHbI90fyvbXM2O2VvzqHLSH7fiMyA'
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey) // For admin operations
+const supabase = getSupabase()
 
 // Define the Sport type based on your database schema
 export type Sport = {
@@ -50,22 +45,25 @@ export default function SportsPage() {
     sport_name: "",
     sport_code: "",
     icon_url: null as string | null,
+    field_image_url: null as string | null,
     display_order: 0,
     is_active: true,
   })
   const [iconFile, setIconFile] = useState<File | null>(null)
   const [iconPreview, setIconPreview] = useState<string | null>(null)
+  const [fieldImageFile, setFieldImageFile] = useState<File | null>(null)
+  const [fieldImagePreview, setFieldImagePreview] = useState<string | null>(null)
 
   // Function to create storage bucket if it doesn't exist
   const createBucketIfNotExists = async () => {
     try {
       // Check if bucket exists
-      const { data: buckets } = await supabaseAdmin.storage.listBuckets()
+      const { data: buckets } = await supabase.storage.listBuckets()
       const bucketExists = buckets?.some(bucket => bucket.name === 'sports-icons')
       
       if (!bucketExists) {
         // Create bucket
-        const { error } = await supabaseAdmin.storage.createBucket('sports-icons', {
+        const { error } = await supabase.storage.createBucket('sports-icons', {
           public: true,
           fileSizeLimit: 5242880, // 5MB
           allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/svg+xml']
@@ -119,11 +117,15 @@ export default function SportsPage() {
       sport_name: sport.sport_name,
       sport_code: sport.sport_code,
       icon_url: sport.icon_url,
+      field_image_url: (sport as any).field_image_url || null,
       display_order: sport.display_order,
       is_active: sport.is_active,
     })
     if (sport.icon_url) {
       setIconPreview(sport.icon_url)
+    }
+    if ((sport as any).field_image_url) {
+      setFieldImagePreview((sport as any).field_image_url)
     }
     setIsDialogOpen(true)
   }
@@ -134,6 +136,7 @@ export default function SportsPage() {
       sport_name: "",
       sport_code: "",
       icon_url: null,
+      field_image_url: null,
       display_order: sportsList.length > 0 
         ? Math.max(...sportsList.map(s => s.display_order)) + 1 
         : 1,
@@ -141,6 +144,8 @@ export default function SportsPage() {
     })
     setIconFile(null)
     setIconPreview(null)
+    setFieldImageFile(null)
+    setFieldImagePreview(null)
     setIsDialogOpen(true)
   }
 
@@ -174,6 +179,38 @@ export default function SportsPage() {
     setIconFile(null)
     setIconPreview(null)
     setFormData(prev => ({ ...prev, icon_url: null }))
+  }
+
+  const handleFieldImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please upload an image file')
+        return
+      }
+      
+      // Validate file size (max 10MB for field images)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('File size should be less than 10MB')
+        return
+      }
+      
+      setFieldImageFile(file)
+      
+      // Create preview
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setFieldImagePreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const removeFieldImage = () => {
+    setFieldImageFile(null)
+    setFieldImagePreview(null)
+    setFormData(prev => ({ ...prev, field_image_url: null }))
   }
 
   const uploadIconToStorage = async (): Promise<string | null> => {
@@ -219,6 +256,7 @@ export default function SportsPage() {
       setIsSaving(true)
 
       let iconUrl = formData.icon_url
+      let fieldImageUrl = formData.field_image_url
 
       // Upload new icon if file was selected
       if (iconFile) {
@@ -233,10 +271,43 @@ export default function SportsPage() {
         }
       }
 
+      // Upload new field image if file was selected
+      if (fieldImageFile) {
+        try {
+          const fileName = `field_${Date.now()}_${fieldImageFile.name.replace(/\s+/g, '_')}`
+          
+          const { data, error } = await supabase.storage
+            .from('sports-icons')
+            .upload(fileName, fieldImageFile, {
+              cacheControl: '3600',
+              upsert: false,
+              contentType: fieldImageFile.type
+            })
+
+          if (error) {
+            console.error('Field image upload error:', error)
+            throw new Error(error.message || 'Failed to upload field image')
+          }
+
+          const { data: { publicUrl } } = supabase.storage
+            .from('sports-icons')
+            .getPublicUrl(data.path)
+
+          fieldImageUrl = publicUrl
+          console.log('Field image uploaded successfully:', publicUrl)
+        } catch (uploadError) {
+          console.error('Field image upload failed:', uploadError)
+          toast.error('Failed to upload field image. Please try again.')
+          setIsSaving(false)
+          return
+        }
+      }
+
       const sportData = {
         sport_name: formData.sport_name.trim(),
         sport_code: formData.sport_code.trim().toUpperCase(),
         icon_url: iconUrl,
+        field_image_url: fieldImageUrl,
         display_order: formData.display_order || 0,
         is_active: formData.is_active,
       }
@@ -271,6 +342,8 @@ export default function SportsPage() {
       // Reset form
       setIconFile(null)
       setIconPreview(null)
+      setFieldImageFile(null)
+      setFieldImagePreview(null)
       
       // Refresh the sports list
       fetchSports()
@@ -421,6 +494,48 @@ export default function SportsPage() {
               </div>
             </div>
             <div className="space-y-2">
+              <Label htmlFor="field_image">Field Background Image</Label>
+              <div className="space-y-4">
+                {fieldImagePreview && (
+                  <div className="relative inline-block">
+                    <img 
+                      src={fieldImagePreview} 
+                      alt="Field background preview" 
+                      className="h-32 w-auto object-contain rounded-md border"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute -top-2 -right-2 h-6 w-6"
+                      onClick={removeFieldImage}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+                <div className="flex items-center gap-4">
+                  <Label 
+                    htmlFor="field-upload"
+                    className="cursor-pointer border-2 border-dashed border-gray-300 rounded-md p-4 hover:border-gray-400 transition-colors flex items-center gap-2"
+                  >
+                    <Upload className="h-4 w-4" />
+                    Upload Field Background
+                  </Label>
+                  <Input
+                    id="field-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFieldImageUpload}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Upload field background (PNG, JPG, SVG) - Max 10MB
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="display_order">Order</Label>
               <Input
                 id="display_order"
@@ -446,6 +561,8 @@ export default function SportsPage() {
                 setIsDialogOpen(false)
                 setIconFile(null)
                 setIconPreview(null)
+                setFieldImageFile(null)
+                setFieldImagePreview(null)
               }}
               disabled={isSaving}
             >

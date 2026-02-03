@@ -15,10 +15,7 @@ export type CricketStats = {
   red_cards: number
   overs: number
   economy_rate?: number | null
-  assisted_run_outs?: number;
-  strike_rate?: number | null; // Add this
 }
-
 
 export type FootballStats = {
   goals: number

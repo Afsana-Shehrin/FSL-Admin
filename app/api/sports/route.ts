@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey)
+import { getAdminClient } from '@/lib/supabase/admin-lazy'
 
 export async function GET() {
   try {
+    const supabase = getAdminClient()
     const { data, error } = await supabase
       .from('sports')
       .select('*')
@@ -28,6 +24,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = getAdminClient()
     const body = await request.json()
     
     // Validate required fields

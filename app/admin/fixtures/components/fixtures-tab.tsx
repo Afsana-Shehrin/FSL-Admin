@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Edit, Trash2, Search, Trophy } from "lucide-react"
-import { createClient } from '@supabase/supabase-js'
+import { getSupabase } from '@/lib/supabase/working-client'
 import {
   Dialog,
   DialogContent,
@@ -23,9 +23,7 @@ import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 // Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-const supabase = createClient(supabaseUrl!, supabaseAnonKey!)
+const supabase = getSupabase()
 
 // Types
 type Fixture = {

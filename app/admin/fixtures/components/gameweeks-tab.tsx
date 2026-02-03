@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Edit, Trash2, CalendarIcon, Search } from "lucide-react"
-import { createClient } from '@supabase/supabase-js'
+import { getSupabase } from '@/lib/supabase/working-client'
 import {
   Dialog,
   DialogContent,
@@ -22,9 +22,7 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 
 // Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-const supabase = createClient(supabaseUrl!, supabaseAnonKey!)
+const supabase = getSupabase()
 
 // Types based on your table structure
 type Gameweek = {

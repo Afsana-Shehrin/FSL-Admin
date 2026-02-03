@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useToast } from "@/hooks/use-toast"
-import { createClient } from '@supabase/supabase-js'
+import { getSupabase } from '@/lib/supabase/working-client'
 import {
   Dialog,
   DialogContent,
@@ -18,9 +18,7 @@ import { Badge } from "@/components/ui/badge"
 import { Lock, Unlock, CheckCircle, XCircle } from "lucide-react"
 
 // Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
+const supabase = getSupabase()
 
 interface Gameweek {
   gameweek_id: number

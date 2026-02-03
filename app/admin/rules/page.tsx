@@ -1,17 +1,28 @@
 "use client"
 
+<<<<<<< HEAD
 import { useState, useEffect, useCallback } from "react"
+=======
+import { useState, useEffect } from "react"
+>>>>>>> otherrepo/main
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import TeamRulesTab from "./components/team-rules-tab"
 import ScoringRulesTab from "./components/scoring-rules-tab"
 import BudgetRulesTab from "./components/budget-rules-tab"
+<<<<<<< HEAD
 import { createClient } from '@supabase/supabase-js'
 
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 const supabase = createClient(supabaseUrl!, supabaseAnonKey!)
+=======
+import { getSupabase } from '@/lib/supabase/working-client'
+
+// Initialize Supabase client
+const supabase = getSupabase()
+>>>>>>> otherrepo/main
 
 // Interfaces
 export interface Sport {
@@ -23,6 +34,7 @@ export interface Sport {
 
 export interface TeamRule {
   id: string
+<<<<<<< HEAD
   formatName: string
   formatCode: string
   description: string
@@ -49,6 +61,27 @@ export interface TeamRule {
   maxWicketKeepers?: number
   
   // Football specific
+=======
+  sportId: string
+  name: string
+  description: string
+  totalCredits: number
+  maxPlayersPerTeam: number
+  minWicketkeepers: number
+  maxWicketkeepers: number
+  minBatsmen: number
+  maxBatsmen: number
+  minAllrounders: number
+  maxAllrounders: number
+  minBowlers: number
+  maxBowlers: number
+  totalPlayers: number
+  matchFormats: string[]
+  captainMultiplier: number
+  viceCaptainMultiplier: number
+  isActive: boolean
+  isLocked: boolean
+>>>>>>> otherrepo/main
   minGoalkeepers?: number
   maxGoalkeepers?: number
   minDefenders?: number
@@ -57,6 +90,7 @@ export interface TeamRule {
   maxMidfielders?: number
   minForwards?: number
   maxForwards?: number
+<<<<<<< HEAD
   
   // Match format specific
   maxOversPerInnings?: number
@@ -77,6 +111,9 @@ export interface TeamRule {
   
   // Other fields
   displayOrder: number
+=======
+  maxPlayersPerRealTeam?: number
+>>>>>>> otherrepo/main
 }
 
 export interface ScoringRule {
@@ -94,10 +131,17 @@ export interface ScoringRule {
   minRequirement?: number
   excludeRunout?: boolean
   boundaryType?: string
+<<<<<<< HEAD
+=======
+  matchFormats: string[]
+  isActive: boolean
+  isLocked: boolean
+>>>>>>> otherrepo/main
   position?: string
   minutesPlayed?: number
   goalsConcededInterval?: number
   isPenalty?: boolean
+<<<<<<< HEAD
 
   // New cricket-specific fields
   wicketType?: string
@@ -167,6 +211,8 @@ export interface ScoringRule {
   displayOrder: number
   formatId?: number
   sportType?: string
+=======
+>>>>>>> otherrepo/main
 }
 
 export interface BudgetRule {
@@ -177,17 +223,34 @@ export interface BudgetRule {
   totalBudget: number
   minPlayerPrice: number
   maxPlayerPrice: number
+<<<<<<< HEAD
   transferBudget: number
   matchFormats: string[]
   isActive: boolean
   isLocked: boolean
   displayOrder: number
+=======
+  matchFormats: string[]
+  isActive: boolean
+  isLocked: boolean
+>>>>>>> otherrepo/main
 }
 
 // Constants
 export const CRICKET_MATCH_FORMATS = ['T20', 'ODI', 'Test', 'T10'] as const;
 export const FOOTBALL_MATCH_FORMATS = ['Standard League Match (90-Minute)', 'Knockout Match (Cup Format)', 'Extra-Time Match (120-Minute)'];
+<<<<<<< HEAD
 
+=======
+export const SCORING_CATEGORIES = ['batting', 'bowling', 'fielding', 'economy', 'strike_rate'] as const;
+export const ACTION_TYPES = {
+  batting: ['run', 'boundary_four', 'boundary_six', 'milestone', 'duck'],
+  bowling: ['wicket', 'milestone', 'maiden'],
+  fielding: ['catch', 'stumping', 'run_out', 'assisted_run_out'],
+  economy: ['range'],
+  strike_rate: ['range']
+} as const;
+>>>>>>> otherrepo/main
 export const getMatchFormatsForSport = (sportName: string) => {
   const sport = sportName.toLowerCase();
   if (sport.includes('football')) {
@@ -195,6 +258,7 @@ export const getMatchFormatsForSport = (sportName: string) => {
   } else if (sport.includes('cricket')) {
     return CRICKET_MATCH_FORMATS;
   }
+<<<<<<< HEAD
   return CRICKET_MATCH_FORMATS;
 };
 
@@ -384,16 +448,78 @@ export const saveTeamRule = async (rule: TeamRule, sportName: string) => {
         .from(tableName)
         .update(formatData)
         .eq('format_id', parseInt(rule.id))
+=======
+  return CRICKET_MATCH_FORMATS; // default
+};
+
+export const MATCH_FORMATS = CRICKET_MATCH_FORMATS;
+// Team Rules API
+export const fetchTeamRules = async (sportId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('team_composition_rules')
+      .select('*')
+      .eq('sport_id', sportId)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data || []
+  } catch (error) {
+    console.error("Error fetching team rules:", error)
+    throw error
+  }
+};
+
+export const saveTeamRule = async (rule: TeamRule) => {
+  try {
+    const ruleData = {
+      sport_id: parseInt(rule.sportId),
+      rule_name: rule.name,
+      description: rule.description,
+      total_credits: rule.totalCredits,
+      max_players_per_team: rule.maxPlayersPerTeam,
+      min_wicketkeepers: rule.minWicketkeepers,
+      max_wicketkeepers: rule.maxWicketkeepers,
+      min_batsmen: rule.minBatsmen,
+      max_batsmen: rule.maxBatsmen,
+      min_allrounders: rule.minAllrounders,
+      max_allrounders: rule.maxAllrounders,
+      min_bowlers: rule.minBowlers,
+      max_bowlers: rule.maxBowlers,
+      total_players: rule.totalPlayers,
+      match_formats: rule.matchFormats,
+      captain_multiplier: rule.captainMultiplier,
+      vice_captain_multiplier: rule.viceCaptainMultiplier,
+      is_active: rule.isActive,
+      is_locked: rule.isLocked,
+      updated_at: new Date().toISOString()
+    }
+
+    // Check if this is an update or insert
+    if (rule.id && rule.id !== "") {
+      // Update existing rule
+      const { data, error } = await supabase
+        .from('team_composition_rules')
+        .update(ruleData)
+        .eq('rule_id', parseInt(rule.id))
+>>>>>>> otherrepo/main
         .select()
         .single()
 
       if (error) throw error
       return data
     } else {
+<<<<<<< HEAD
       // Insert new format
       const { data, error } = await supabase
         .from(tableName)
         .insert([formatData])
+=======
+      // Insert new rule
+      const { data, error } = await supabase
+        .from('team_composition_rules')
+        .insert([ruleData])
+>>>>>>> otherrepo/main
         .select()
         .single()
 
@@ -404,6 +530,7 @@ export const saveTeamRule = async (rule: TeamRule, sportName: string) => {
     console.error("Error saving team rule:", error)
     throw error
   }
+<<<<<<< HEAD
 }
 
 // Delete team rule from appropriate table
@@ -422,6 +549,16 @@ export const deleteTeamRule = async (id: string, sportName: string) => {
       .from(tableName)
       .delete()
       .eq('format_id', parseInt(id))
+=======
+};
+
+export const deleteTeamRule = async (id: string) => {
+  try {
+    const { error } = await supabase
+      .from('team_composition_rules')
+      .delete()
+      .eq('rule_id', parseInt(id))
+>>>>>>> otherrepo/main
 
     if (error) throw error
     return { success: true }
@@ -429,6 +566,7 @@ export const deleteTeamRule = async (id: string, sportName: string) => {
     console.error("Error deleting team rule:", error)
     throw error
   }
+<<<<<<< HEAD
 }
 
 // ========== SCORING RULES API ==========
@@ -554,6 +692,32 @@ export const saveScoringRule = async (rule: ScoringRule, sportName: string) => {
       format_id: formatId,
       sports_id: parseInt(rule.sportId),      
       name: rule.name,
+=======
+};
+
+// Scoring Rules API
+export const fetchScoringRules = async (sportId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('scoring_rules')
+      .select('*')
+      .eq('sport_id', sportId)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data || []
+  } catch (error) {
+    console.error("Error fetching scoring rules:", error)
+    throw error
+  }
+};
+
+export const saveScoringRule = async (rule: ScoringRule) => {
+  try {
+    const ruleData = {
+      sport_id: parseInt(rule.sportId),
+      rule_name: rule.name,
+>>>>>>> otherrepo/main
       description: rule.description,
       category: rule.category,
       action_type: rule.actionType,
@@ -565,6 +729,7 @@ export const saveScoringRule = async (rule: ScoringRule, sportName: string) => {
       min_requirement: rule.minRequirement,
       exclude_runout: rule.excludeRunout,
       boundary_type: rule.boundaryType,
+<<<<<<< HEAD
       position: rule.position,
       minutes_played: rule.minutesPlayed,
       goals_conceded_interval: rule.goalsConcededInterval,
@@ -581,25 +746,44 @@ export const saveScoringRule = async (rule: ScoringRule, sportName: string) => {
       is_active: rule.isActive,
       is_locked: rule.isLocked,
       display_order: rule.displayOrder
+=======
+      match_formats: rule.matchFormats,
+      is_active: rule.isActive,
+      is_locked: rule.isLocked,
+      updated_at: new Date().toISOString()
+>>>>>>> otherrepo/main
     }
 
     // Check if this is an update or insert
     if (rule.id && rule.id !== "") {
+<<<<<<< HEAD
       // Update existing scoring rule
       const { data, error } = await supabase
         .from('scoring_rules')
         .update(scoringRuleData)
         .eq('id', rule.id)
+=======
+      const { data, error } = await supabase
+        .from('scoring_rules')
+        .update(ruleData)
+        .eq('rule_id', parseInt(rule.id))
+>>>>>>> otherrepo/main
         .select()
         .single()
 
       if (error) throw error
       return data
     } else {
+<<<<<<< HEAD
       // Insert new scoring rule
       const { data, error } = await supabase
         .from('scoring_rules')
         .insert([scoringRuleData])
+=======
+      const { data, error } = await supabase
+        .from('scoring_rules')
+        .insert([ruleData])
+>>>>>>> otherrepo/main
         .select()
         .single()
 
@@ -610,15 +794,25 @@ export const saveScoringRule = async (rule: ScoringRule, sportName: string) => {
     console.error("Error saving scoring rule:", error)
     throw error
   }
+<<<<<<< HEAD
 }
 
 // Delete scoring rule from scoring_rules table
 export const deleteScoringRule = async (id: string, sportName: string) => {
+=======
+};
+
+export const deleteScoringRule = async (id: string) => {
+>>>>>>> otherrepo/main
   try {
     const { error } = await supabase
       .from('scoring_rules')
       .delete()
+<<<<<<< HEAD
       .eq('id', id)
+=======
+      .eq('rule_id', parseInt(id))
+>>>>>>> otherrepo/main
 
     if (error) throw error
     return { success: true }
@@ -626,6 +820,7 @@ export const deleteScoringRule = async (id: string, sportName: string) => {
     console.error("Error deleting scoring rule:", error)
     throw error
   }
+<<<<<<< HEAD
 }
 
 // ========== BUDGET RULES API ==========
@@ -709,12 +904,55 @@ export const saveBudgetRule = async (rule: BudgetRule, sportName: string) => {
         .from(tableName)
         .update(updateData)
         .eq('format_id', parseInt(rule.id))
+=======
+};
+
+// Budget Rules API
+export const fetchBudgetRules = async (sportId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('new_budget_rules')
+      .select('*')
+      .eq('sport_id', sportId)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data || []
+  } catch (error) {
+    console.error("Error fetching budget rules:", error)
+    throw error
+  }
+};
+
+export const saveBudgetRule = async (rule: BudgetRule) => {
+  try {
+    const ruleData = {
+      sport_id: parseInt(rule.sportId),
+      rule_name: rule.name,
+      description: rule.description,
+      total_budget: rule.totalBudget,
+      min_player_price: rule.minPlayerPrice,
+      max_player_price: rule.maxPlayerPrice,
+      match_formats: rule.matchFormats,
+      is_active: rule.isActive,
+      is_locked: rule.isLocked,
+      updated_at: new Date().toISOString()
+    }
+
+    // Check if this is an update or insert
+    if (rule.id && rule.id !== "") {
+      const { data, error } = await supabase
+        .from('new_budget_rules')
+        .update(ruleData)
+        .eq('rule_id', parseInt(rule.id))
+>>>>>>> otherrepo/main
         .select()
         .single()
 
       if (error) throw error
       return data
     } else {
+<<<<<<< HEAD
       // For new rules, create a new format entry
       const formatData: any = {
         format_name: rule.name,
@@ -731,6 +969,11 @@ export const saveBudgetRule = async (rule: BudgetRule, sportName: string) => {
       const { data, error } = await supabase
         .from(tableName)
         .insert([formatData])
+=======
+      const { data, error } = await supabase
+        .from('new_budget_rules')
+        .insert([ruleData])
+>>>>>>> otherrepo/main
         .select()
         .single()
 
@@ -741,6 +984,7 @@ export const saveBudgetRule = async (rule: BudgetRule, sportName: string) => {
     console.error("Error saving budget rule:", error)
     throw error
   }
+<<<<<<< HEAD
 }
 
 // Delete budget rule (deactivate in match_formats table)
@@ -760,6 +1004,16 @@ export const deleteBudgetRule = async (id: string, sportName: string) => {
       .from(tableName)
       .update({ is_active: false })
       .eq('format_id', parseInt(id))
+=======
+};
+
+export const deleteBudgetRule = async (id: string) => {
+  try {
+    const { error } = await supabase
+      .from('new_budget_rules')
+      .delete()
+      .eq('rule_id', parseInt(id))
+>>>>>>> otherrepo/main
 
     if (error) throw error
     return { success: true }
@@ -767,6 +1021,7 @@ export const deleteBudgetRule = async (id: string, sportName: string) => {
     console.error("Error deleting budget rule:", error)
     throw error
   }
+<<<<<<< HEAD
 }
 
 // ========== MAIN COMPONENT ==========
@@ -775,6 +1030,13 @@ export default function RulesPage() {
   const [sports, setSports] = useState<Sport[]>([])
   const [selectedSport, setSelectedSport] = useState<string>("")
   const [selectedSportName, setSelectedSportName] = useState<string>("")
+=======
+};
+
+export default function RulesPage() {
+  const [sports, setSports] = useState<Sport[]>([])
+  const [selectedSport, setSelectedSport] = useState("")
+>>>>>>> otherrepo/main
   const [activeTab, setActiveTab] = useState("team")
   const [isLoading, setIsLoading] = useState(false)
 
@@ -796,7 +1058,11 @@ export default function RulesPage() {
 
         if (error) throw error
 
+<<<<<<< HEAD
         const transformedSports: Sport[] = (data || []).map((sport: any) => ({
+=======
+        const transformedSports: Sport[] = (data || []).map((sport: { sport_id: { toString: () => any }; sport_name: string; icon_url: any; is_active: any }) => ({
+>>>>>>> otherrepo/main
           id: sport.sport_id.toString(),
           name: sport.sport_name,
           icon: sport.icon_url || (sport.sport_name === 'Cricket' ? '🏏' : '⚽'),
@@ -808,6 +1074,7 @@ export default function RulesPage() {
         if (transformedSports.length > 0) {
           const lastSelectedSport = localStorage.getItem("last_selected_sport")
           if (lastSelectedSport && transformedSports.some(s => s.id === lastSelectedSport)) {
+<<<<<<< HEAD
             const sport = transformedSports.find(s => s.id === lastSelectedSport)
             if (sport) {
               setSelectedSport(sport.id)
@@ -816,10 +1083,32 @@ export default function RulesPage() {
           } else {
             setSelectedSport(transformedSports[0].id)
             setSelectedSportName(transformedSports[0].name)
+=======
+            setSelectedSport(lastSelectedSport)
+          } else {
+            setSelectedSport(transformedSports[0].id)
+>>>>>>> otherrepo/main
           }
         }
       } catch (error) {
         console.error("Error loading sports:", error)
+<<<<<<< HEAD
+=======
+        // Fallback to localStorage
+        const storedSports = localStorage.getItem("sports_list")
+        if (storedSports) {
+          try {
+            const parsed = JSON.parse(storedSports) as Sport[]
+            const activeSports = parsed.filter((s) => s.isActive)
+            setSports(activeSports)
+            if (activeSports.length > 0) {
+              setSelectedSport(activeSports[0].id)
+            }
+          } catch (e) {
+            console.error("Error parsing stored sports:", e)
+          }
+        }
+>>>>>>> otherrepo/main
       } finally {
         setIsLoading(false)
       }
@@ -827,15 +1116,29 @@ export default function RulesPage() {
     loadSports()
   }, [])
 
+<<<<<<< HEAD
   // Load rules from database when sport changes
   useEffect(() => {
     if (!selectedSport || !selectedSportName) return;
+=======
+  // Save selected sport
+  useEffect(() => {
+    if (selectedSport) {
+      localStorage.setItem("last_selected_sport", selectedSport)
+    }
+  }, [selectedSport])
+
+  // Load rules from database when sport changes
+  useEffect(() => {
+    if (!selectedSport) return;
+>>>>>>> otherrepo/main
 
     const loadRules = async () => {
       setIsLoading(true);
       try {
         // Load all rules in parallel
         const [teamData, scoringData, budgetData] = await Promise.all([
+<<<<<<< HEAD
           fetchTeamRules(selectedSport, selectedSportName),
           fetchScoringRules(selectedSport, selectedSportName),
           fetchBudgetRules(selectedSport, selectedSportName)
@@ -867,12 +1170,87 @@ export default function RulesPage() {
         setTeamRules([])
         setScoringRules([])
         setBudgetRules([])
+=======
+          fetchTeamRules(selectedSport).catch(() => []),
+          fetchScoringRules(selectedSport).catch(() => []),
+          fetchBudgetRules(selectedSport).catch(() => [])
+        ]);
+
+        // Transform database data to match frontend interface
+        setTeamRules(teamData.map((rule: any) => ({
+          id: rule.rule_id.toString(),
+          sportId: rule.sport_id.toString(),
+          name: rule.rule_name,
+          description: rule.description || '',
+          totalCredits: parseFloat(rule.total_credits) || 100,
+          maxPlayersPerTeam: rule.max_players_per_team || 7,
+          minWicketkeepers: rule.min_wicketkeepers || 1,
+          maxWicketkeepers: rule.max_wicketkeepers || 2,
+          minBatsmen: rule.min_batsmen || 3,
+          maxBatsmen: rule.max_batsmen || 6,
+          minAllrounders: rule.min_allrounders || 1,
+          maxAllrounders: rule.max_allrounders || 4,
+          minBowlers: rule.min_bowlers || 3,
+          maxBowlers: rule.max_bowlers || 6,
+          totalPlayers: rule.total_players || 11,
+          matchFormats: rule.match_formats || ['T20', 'ODI', 'Test', 'T10'],
+          captainMultiplier: parseFloat(rule.captain_multiplier) || 2.0,
+          viceCaptainMultiplier: parseFloat(rule.vice_captain_multiplier) || 1.5,
+          isActive: rule.is_active ?? true,
+          isLocked: rule.is_locked ?? false
+        })));
+
+        setScoringRules(scoringData.map((rule: any) => ({
+          id: rule.rule_id.toString(),
+          sportId: rule.sport_id.toString(),
+          name: rule.rule_name,
+          description: rule.description || '',
+          category: rule.category,
+          actionType: rule.action_type,
+          points: rule.points || 0,
+          minValue: rule.min_value,
+          maxValue: rule.max_value,
+          rangeMin: rule.range_min,
+          rangeMax: rule.range_max,
+          minRequirement: rule.min_requirement,
+          excludeRunout: rule.exclude_runout || false,
+          boundaryType: rule.boundary_type,
+          matchFormats: rule.match_formats || ['T20', 'ODI', 'Test', 'T10'],
+          isActive: rule.is_active ?? true,
+          isLocked: rule.is_locked ?? false
+        })));
+
+        setBudgetRules(budgetData.map((rule: any) => ({
+          id: rule.rule_id.toString(),
+          sportId: rule.sport_id.toString(),
+          name: rule.rule_name,
+          description: rule.description || '',
+          totalBudget: parseFloat(rule.total_budget) || 100,
+          minPlayerPrice: parseFloat(rule.min_player_price) || 1,
+          maxPlayerPrice: parseFloat(rule.max_player_price) || 15,
+          matchFormats: rule.match_formats || ['T20', 'ODI', 'Test', 'T10'],
+          isActive: rule.is_active ?? true,
+          isLocked: rule.is_locked ?? false
+        })));
+
+      } catch (error) {
+        console.error("Error loading rules:", error);
+        // Load from localStorage as fallback
+        const storedTeamRules = localStorage.getItem("team_rules_v2");
+        const storedScoringRules = localStorage.getItem("scoring_rules_v2");
+        const storedBudgetRules = localStorage.getItem("budget_rules_v2");
+
+        if (storedTeamRules) setTeamRules(JSON.parse(storedTeamRules));
+        if (storedScoringRules) setScoringRules(JSON.parse(storedScoringRules));
+        if (storedBudgetRules) setBudgetRules(JSON.parse(storedBudgetRules));
+>>>>>>> otherrepo/main
       } finally {
         setIsLoading(false);
       }
     };
 
     loadRules();
+<<<<<<< HEAD
   }, [selectedSport, selectedSportName]);
 
   // Handle sport selection
@@ -901,6 +1279,47 @@ export default function RulesPage() {
     } catch (error) {
       console.error("Failed to delete team rule:", error);
       alert("Failed to delete format. Please try again.");
+=======
+  }, [selectedSport]);
+
+  // Keep localStorage as backup
+  useEffect(() => {
+    if (teamRules.length > 0) {
+      localStorage.setItem("team_rules_v2", JSON.stringify(teamRules));
+    }
+  }, [teamRules]);
+
+  useEffect(() => {
+    if (scoringRules.length > 0) {
+      localStorage.setItem("scoring_rules_v2", JSON.stringify(scoringRules));
+    }
+  }, [scoringRules]);
+
+  useEffect(() => {
+    if (budgetRules.length > 0) {
+      localStorage.setItem("budget_rules_v2", JSON.stringify(budgetRules));
+    }
+  }, [budgetRules]);
+
+  const getCurrentSport = () => sports.find((s) => s.id === selectedSport)
+
+  // Filter rules by selected sport
+  const filteredTeamRules = teamRules.filter((r) => r.sportId === selectedSport)
+  const filteredScoringRules = scoringRules.filter((r) => r.sportId === selectedSport)
+  const filteredBudgetRules = budgetRules.filter((r) => r.sportId === selectedSport)
+
+  // Team Rule Handlers
+  const handleDeleteTeamRule = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this team rule?")) return;
+    
+    try {
+      setIsLoading(true);
+      await deleteTeamRule(id);
+      setTeamRules(teamRules.filter((r) => r.id !== id))
+    } catch (error) {
+      console.error("Failed to delete team rule:", error);
+      alert("Failed to delete rule. Please try again.");
+>>>>>>> otherrepo/main
     } finally {
       setIsLoading(false);
     }
@@ -914,16 +1333,25 @@ export default function RulesPage() {
     
     try {
       setIsLoading(true);
+<<<<<<< HEAD
       await saveTeamRule(updatedRule, selectedSportName);
       setTeamRules(teamRules.map((r) => (r.id === id ? updatedRule : r)))
     } catch (error) {
       console.error("Failed to update team rule:", error);
       alert("Failed to update format status. Please try again.");
+=======
+      await saveTeamRule(updatedRule);
+      setTeamRules(teamRules.map((r) => (r.id === id ? updatedRule : r)))
+    } catch (error) {
+      console.error("Failed to update team rule:", error);
+      alert("Failed to update rule status. Please try again.");
+>>>>>>> otherrepo/main
     } finally {
       setIsLoading(false);
     }
   }
 
+<<<<<<< HEAD
   // Add team rule handler
   const handleAddTeamRule = async (rule: TeamRule) => {
     try {
@@ -938,6 +1366,25 @@ export default function RulesPage() {
       setIsLoading(false);
     }
   };
+=======
+  const handleToggleTeamRuleLock = async (id: string) => {
+    const rule = teamRules.find(r => r.id === id);
+    if (!rule) return;
+    
+    const updatedRule = { ...rule, isLocked: !rule.isLocked };
+    
+    try {
+      setIsLoading(true);
+      await saveTeamRule(updatedRule);
+      setTeamRules(teamRules.map((r) => (r.id === id ? updatedRule : r)))
+    } catch (error) {
+      console.error("Failed to update team rule lock:", error);
+      alert("Failed to update rule lock. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+>>>>>>> otherrepo/main
 
   // Scoring Rule Handlers
   const handleDeleteScoringRule = async (id: string) => {
@@ -945,7 +1392,11 @@ export default function RulesPage() {
     
     try {
       setIsLoading(true);
+<<<<<<< HEAD
       await deleteScoringRule(id, selectedSportName);
+=======
+      await deleteScoringRule(id);
+>>>>>>> otherrepo/main
       setScoringRules(scoringRules.filter((r) => r.id !== id))
     } catch (error) {
       console.error("Failed to delete scoring rule:", error);
@@ -963,7 +1414,11 @@ export default function RulesPage() {
     
     try {
       setIsLoading(true);
+<<<<<<< HEAD
       await saveScoringRule(updatedRule, selectedSportName);
+=======
+      await saveScoringRule(updatedRule);
+>>>>>>> otherrepo/main
       setScoringRules(scoringRules.map((r) => (r.id === id ? updatedRule : r)))
     } catch (error) {
       console.error("Failed to update scoring rule:", error);
@@ -981,11 +1436,19 @@ export default function RulesPage() {
     
     try {
       setIsLoading(true);
+<<<<<<< HEAD
       await saveScoringRule(updatedRule, selectedSportName);
       setScoringRules(scoringRules.map((r) => (r.id === id ? updatedRule : r)))
     } catch (error) {
       console.error("Failed to toggle scoring rule lock:", error);
       alert("Failed to toggle lock status. Please try again.");
+=======
+      await saveScoringRule(updatedRule);
+      setScoringRules(scoringRules.map((r) => (r.id === id ? updatedRule : r)))
+    } catch (error) {
+      console.error("Failed to update scoring rule lock:", error);
+      alert("Failed to update rule lock. Please try again.");
+>>>>>>> otherrepo/main
     } finally {
       setIsLoading(false);
     }
@@ -997,7 +1460,11 @@ export default function RulesPage() {
     
     try {
       setIsLoading(true);
+<<<<<<< HEAD
       await deleteBudgetRule(id, selectedSportName);
+=======
+      await deleteBudgetRule(id);
+>>>>>>> otherrepo/main
       setBudgetRules(budgetRules.filter((r) => r.id !== id))
     } catch (error) {
       console.error("Failed to delete budget rule:", error);
@@ -1015,7 +1482,11 @@ export default function RulesPage() {
     
     try {
       setIsLoading(true);
+<<<<<<< HEAD
       await saveBudgetRule(updatedRule, selectedSportName);
+=======
+      await saveBudgetRule(updatedRule);
+>>>>>>> otherrepo/main
       setBudgetRules(budgetRules.map((r) => (r.id === id ? updatedRule : r)))
     } catch (error) {
       console.error("Failed to update budget rule:", error);
@@ -1033,22 +1504,53 @@ export default function RulesPage() {
     
     try {
       setIsLoading(true);
+<<<<<<< HEAD
       await saveBudgetRule(updatedRule, selectedSportName);
       setBudgetRules(budgetRules.map((r) => (r.id === id ? updatedRule : r)))
     } catch (error) {
       console.error("Failed to toggle budget rule lock:", error);
       alert("Failed to toggle lock status. Please try again.");
+=======
+      await saveBudgetRule(updatedRule);
+      setBudgetRules(budgetRules.map((r) => (r.id === id ? updatedRule : r)))
+    } catch (error) {
+      console.error("Failed to update budget rule lock:", error);
+      alert("Failed to update rule lock. Please try again.");
+>>>>>>> otherrepo/main
     } finally {
       setIsLoading(false);
     }
   }
 
+<<<<<<< HEAD
   // Add handlers
   const handleAddScoringRule = async (rule: ScoringRule) => {
     try {
       setIsLoading(true);
       await saveScoringRule(rule, selectedSportName);
       const refreshed = await fetchScoringRules(selectedSport, selectedSportName);
+=======
+  // Add rule handlers
+  const handleAddTeamRule = async (rule: TeamRule) => {
+    try {
+      setIsLoading(true);
+      await saveTeamRule(rule);
+      const refreshed = await fetchTeamRules(selectedSport);
+      setTeamRules(refreshed);
+    } catch (error) {
+      console.error("Failed to add team rule:", error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAddScoringRule = async (rule: ScoringRule) => {
+    try {
+      setIsLoading(true);
+      await saveScoringRule(rule);
+      const refreshed = await fetchScoringRules(selectedSport);
+>>>>>>> otherrepo/main
       setScoringRules(refreshed);
     } catch (error) {
       console.error("Failed to add scoring rule:", error);
@@ -1061,8 +1563,13 @@ export default function RulesPage() {
   const handleAddBudgetRule = async (rule: BudgetRule) => {
     try {
       setIsLoading(true);
+<<<<<<< HEAD
       await saveBudgetRule(rule, selectedSportName);
       const refreshed = await fetchBudgetRules(selectedSport, selectedSportName);
+=======
+      await saveBudgetRule(rule);
+      const refreshed = await fetchBudgetRules(selectedSport);
+>>>>>>> otherrepo/main
       setBudgetRules(refreshed);
     } catch (error) {
       console.error("Failed to add budget rule:", error);
@@ -1072,6 +1579,7 @@ export default function RulesPage() {
     }
   };
 
+<<<<<<< HEAD
   const handleRefreshRules = async () => {
     if (!selectedSport || !selectedSportName) return;
     
@@ -1096,10 +1604,37 @@ export default function RulesPage() {
 
   // Add loading indicator
   if (isLoading && !selectedSport) {
+=======
+  // Refresh all rules
+  const handleRefreshRules = async () => {
+    if (!selectedSport) return;
+    
+    setIsLoading(true);
+    try {
+      const [teamData, scoringData, budgetData] = await Promise.all([
+        fetchTeamRules(selectedSport),
+        fetchScoringRules(selectedSport),
+        fetchBudgetRules(selectedSport)
+      ]);
+      
+      setTeamRules(teamData);
+      setScoringRules(scoringData);
+      setBudgetRules(budgetData);
+    } catch (error) {
+      console.error("Failed to refresh rules:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Add loading indicator
+  if (isLoading) {
+>>>>>>> otherrepo/main
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+<<<<<<< HEAD
           <p className="mt-4 text-muted-foreground">Loading sports...</p>
         </div>
       </div>
@@ -1111,6 +1646,9 @@ export default function RulesPage() {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <p className="text-muted-foreground">No sports available. Please add sports first.</p>
+=======
+          <p className="mt-4 text-muted-foreground">Loading rules...</p>
+>>>>>>> otherrepo/main
         </div>
       </div>
     );
@@ -1122,7 +1660,11 @@ export default function RulesPage() {
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Fantasy Rules Configuration</h1>
           <p className="text-sm md:text-base text-muted-foreground">
+<<<<<<< HEAD
             Configure match formats and rules for each sport
+=======
+            Configure sport-specific fantasy league rules for team composition, scoring, and budget
+>>>>>>> otherrepo/main
           </p>
         </div>
         <div className="flex gap-2">
@@ -1130,7 +1672,10 @@ export default function RulesPage() {
             variant="outline" 
             size="sm"
             onClick={handleRefreshRules}
+<<<<<<< HEAD
             disabled={isLoading}
+=======
+>>>>>>> otherrepo/main
           >
             Refresh
           </Button>
@@ -1143,15 +1688,23 @@ export default function RulesPage() {
           <Button
             key={sport.id}
             variant={selectedSport === sport.id ? "default" : "outline"}
+<<<<<<< HEAD
             onClick={() => handleSportSelect(sport.id)}
             className="gap-2"
             disabled={isLoading}
           >
+=======
+            onClick={() => setSelectedSport(sport.id)}
+            className="gap-2"
+          >
+            
+>>>>>>> otherrepo/main
             {sport.name}
           </Button>
         ))}
       </div>
 
+<<<<<<< HEAD
       {!selectedSport ? (
         <div className="flex items-center justify-center h-48">
           <p className="text-muted-foreground">Please select a sport to configure rules.</p>
@@ -1209,6 +1762,60 @@ export default function RulesPage() {
           </TabsContent>
         </Tabs>
       )}
+=======
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="team">Team Composition</TabsTrigger>
+          <TabsTrigger value="scoring">Scoring Rules</TabsTrigger>
+          <TabsTrigger value="budget">Budget Rules</TabsTrigger>
+        </TabsList>
+
+        {/* Team Composition Tab */}
+        <TabsContent value="team">
+          <TeamRulesTab
+            sportName={getCurrentSport()?.name || ""}
+            sportId={selectedSport}
+            rules={filteredTeamRules}
+            isLoading={isLoading}
+            onAddRule={handleAddTeamRule}
+            onEditRule={() => {/* handled in component */}}
+            onDeleteRule={handleDeleteTeamRule}
+            onToggleRule={handleToggleTeamRule}
+            onToggleLock={handleToggleTeamRuleLock}
+          />
+        </TabsContent>
+
+        {/* Scoring Rules Tab */}
+        <TabsContent value="scoring">
+          <ScoringRulesTab
+            sportName={getCurrentSport()?.name || ""}
+            sportId={selectedSport}
+            rules={filteredScoringRules}
+            isLoading={isLoading}
+            onAddRule={handleAddScoringRule}
+            onEditRule={() => {/* handled in component */}}
+            onDeleteRule={handleDeleteScoringRule}
+            onToggleRule={handleToggleScoringRule}
+            onToggleLock={handleToggleScoringRuleLock}
+          />
+        </TabsContent>
+
+        {/* Budget Rules Tab */}
+        <TabsContent value="budget">
+          <BudgetRulesTab
+            sportName={getCurrentSport()?.name || ""}
+            sportId={selectedSport}
+            rules={filteredBudgetRules}
+            isLoading={isLoading}
+            onAddRule={handleAddBudgetRule}
+            onEditRule={() => {/* handled in component */}}
+            onDeleteRule={handleDeleteBudgetRule}
+            onToggleRule={handleToggleBudgetRule}
+            onToggleLock={handleToggleBudgetRuleLock}
+          />
+        </TabsContent>
+      </Tabs>
+>>>>>>> otherrepo/main
     </div>
   )
 }

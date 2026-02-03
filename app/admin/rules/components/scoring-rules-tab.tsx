@@ -4,7 +4,7 @@ import { useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Trash2, Edit2, Lock, LockOpen, Filter } from "lucide-react"
+import { Plus, Trash2, Edit2, Lock, LockOpen } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import {
   Dialog,
@@ -34,36 +34,15 @@ interface ScoringRulesTabProps {
 }
 
 // Sport-specific categories and actions
-const CRICKET_CATEGORIES = ['batting', 'bowling', 'fielding', 'economy', 'strike_rate', 'milestone', 'wicket_type', 'miscellaneous'];
+const CRICKET_CATEGORIES = ['batting', 'bowling', 'fielding', 'economy', 'strike_rate', 'milestone', 'miscellaneous'];
 const FOOTBALL_CATEGORIES = ['attacking', 'defensive', 'goalkeeping', 'disciplinary', 'appearance', 'miscellaneous'];
 
 const CRICKET_ACTION_TYPES = {
-  batting: [
-    'run', 
-    'boundary_four', 
-    'boundary_six', 
-    'thirty', 
-    'seventy_five', 
-    'half_century', 
-    'century', 
-    'duck', 
-    'strike_rate_bonus', 
-    'strike_rate_penalty'
-  ],
-  bowling: [
-    'wicket', 
-    'maiden_over', 
-    'dot_ball', 
-    'three_wicket_haul', 
-    'four_wicket_haul', 
-    'five_wicket_haul', 
-    'economy_rate_bonus', 
-    'economy_rate_penalty'
-  ],
+  batting: ['run', 'boundary_four', 'boundary_six', 'thirty', 'half_century', 'century', 'duck', 'strike_rate'],
+  bowling: ['wicket', 'maiden_over', 'three_wicket_haul', 'four_wicket_haul', 'five_wicket_haul', 'economy_rate'],
   fielding: ['catch', 'run_out', 'stumping', 'direct_hit'],
-  wicket_type: ['bowled_bonus', 'lbw_bonus', 'caught_bonus', 'stump_bonus', 'runout_bonus'],
-  economy: ['economy_rate'],
-  strike_rate: ['strike_rate'],
+  economy: ['economy_bonus', 'economy_penalty'],
+  strike_rate: ['strike_rate_bonus', 'strike_rate_penalty'],
   milestone: ['milestone_bonus'],
   miscellaneous: ['captain', 'vice_captain', 'player_of_match']
 };
@@ -71,7 +50,7 @@ const CRICKET_ACTION_TYPES = {
 const FOOTBALL_ACTION_TYPES = {
   attacking: ['goal_forward', 'goal_midfielder', 'goal_defender', 'goal_goalkeeper', 'assist', 'shot_on_target', 'chance_created', 'penalty_goal', 'free_kick_goal'],
   defensive: ['clean_sheet', 'tackle', 'interception', 'block', 'clearance', 'goals_conceded'],
-  goalkeeping: ['save', 'penalty_save', 'catch_gk', 'punch_clear', 'goals_conceded_gk'],
+  goalkeeping: ['save', 'penalty_save', 'catch_gk', 'punch_clear', 'goals_conceded_gk'], // Changed 'catch' to 'catch_gk'
   disciplinary: ['yellow_card', 'red_card', 'foul', 'penalty_conceded'],
   appearance: ['minutes_played', 'substitute_appearance'],
   miscellaneous: ['own_goal', 'penalty_miss', 'player_of_match', 'captain', 'vice_captain']
@@ -90,10 +69,6 @@ export default function ScoringRulesTab({
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingRule, setEditingRule] = useState<ScoringRule | null>(null)
   const [isSaving, setIsSaving] = useState(false)
-  
-  // Filter states
-  const [selectedFormat, setSelectedFormat] = useState<string>("all")
-  const [selectedCategory, setSelectedCategory] = useState<string>("all")
 
   // Use useMemo to avoid recalculating on every render
   const isFootball = useMemo(() => sportName.toLowerCase().includes('football'), [sportName])
@@ -119,7 +94,7 @@ export default function ScoringRulesTab({
   const defaultMatchFormats = useMemo(() => 
     isFootball 
       ? ['Standard League Match (90-Minute)'] 
-      : ['T20'],
+      : ['T20', 'ODI', 'Test', 'T10'],
     [isFootball]
   )
 
@@ -146,21 +121,7 @@ export default function ScoringRulesTab({
     isPenalty: false,
     matchFormats: defaultMatchFormats as string[],
     isActive: true,
-    isLocked: false,
-    displayOrder: 0,
-    
-    // Cricket specific fields
-    wicketType: undefined as string | undefined,
-    thresholdValue: undefined as number | undefined,
-    bonusMultiplier: undefined as number | undefined,
-    penaltyMultiplier: undefined as number | undefined,
-    
-    // Multiplier fields
-    battingPointMultiplier: undefined as number | undefined,
-    bowlingPointMultiplier: undefined as number | undefined,
-    fieldingPointMultiplier: undefined as number | undefined,
-    economyBonusMultiplier: undefined as number | undefined,
-    strikeRateBonusMultiplier: undefined as number | undefined
+    isLocked: false
   }))
 
   const handleOpenDialog = (rule?: ScoringRule) => {
@@ -185,17 +146,7 @@ export default function ScoringRulesTab({
         isPenalty: rule.isPenalty ?? false,
         matchFormats: rule.matchFormats || defaultMatchFormats,
         isActive: rule.isActive !== undefined ? rule.isActive : true,
-        isLocked: rule.isLocked !== undefined ? rule.isLocked : false,
-        displayOrder: rule.displayOrder || 0,
-        wicketType: rule.wicketType ?? undefined,
-        thresholdValue: rule.thresholdValue ?? undefined,
-        bonusMultiplier: rule.bonusMultiplier ?? undefined,
-        penaltyMultiplier: rule.penaltyMultiplier ?? undefined,
-        battingPointMultiplier: rule.battingPointMultiplier ?? undefined,
-        bowlingPointMultiplier: rule.bowlingPointMultiplier ?? undefined,
-        fieldingPointMultiplier: rule.fieldingPointMultiplier ?? undefined,
-        economyBonusMultiplier: rule.economyBonusMultiplier ?? undefined,
-        strikeRateBonusMultiplier: rule.strikeRateBonusMultiplier ?? undefined
+        isLocked: rule.isLocked !== undefined ? rule.isLocked : false
       })
     } else {
       setEditingRule(null)
@@ -204,7 +155,7 @@ export default function ScoringRulesTab({
         description: "",
         category: defaultCategory,
         actionType: defaultAction,
-        points: getDefaultPoints(defaultAction),
+        points: 0,
         minValue: undefined as number | undefined,
         maxValue: undefined as number | undefined,
         rangeMin: undefined as number | undefined,
@@ -218,17 +169,7 @@ export default function ScoringRulesTab({
         isPenalty: false,
         matchFormats: defaultMatchFormats as string[],
         isActive: true,
-        isLocked: false,
-        displayOrder: rules.length,
-        wicketType: undefined as string | undefined,
-        thresholdValue: undefined as number | undefined,
-        bonusMultiplier: undefined as number | undefined,
-        penaltyMultiplier: undefined as number | undefined,
-        battingPointMultiplier: undefined as number | undefined,
-        bowlingPointMultiplier: undefined as number | undefined,
-        fieldingPointMultiplier: undefined as number | undefined,
-        economyBonusMultiplier: undefined as number | undefined,
-        strikeRateBonusMultiplier: undefined as number | undefined
+        isLocked: false
       })
     }
     setIsDialogOpen(true)
@@ -245,15 +186,11 @@ export default function ScoringRulesTab({
       return
     }
 
-    if (ruleForm.matchFormats.length === 0) {
-      alert("Please select at least one match format.")
-      return
-    }
-
     setIsSaving(true)
     try {
       const newRule: ScoringRule = {
-        id: editingRule?.id || "",
+        // Don't generate ID - let the database do it
+        id: editingRule?.id || "", // Empty string for new rules
         sportId: sportId,
         ...ruleForm
       }
@@ -285,35 +222,28 @@ export default function ScoringRulesTab({
       'run': 'Run',
       'boundary_four': 'Boundary (4 runs)',
       'boundary_six': 'Boundary (6 runs)',
-      'thirty': '30+ Runs Bonus',
-      'seventy_five': '75+ Runs Bonus',
+      'thirty': '30+ Runs',
       'half_century': 'Half Century (50+ runs)',
       'century': 'Century (100+ runs)',
       'duck': 'Duck (0 runs)',
-      'strike_rate_bonus': 'Strike Rate Bonus',
-      'strike_rate_penalty': 'Strike Rate Penalty',
+      'strike_rate': 'Strike Rate Bonus',
       'wicket': 'Wicket',
       'maiden_over': 'Maiden Over',
-      'dot_ball': 'Dot Ball',
-      'three_wicket_haul': '3 Wicket Haul Bonus',
-      'four_wicket_haul': '4 Wicket Haul Bonus',
-      'five_wicket_haul': '5 Wicket Haul Bonus',
-      'economy_rate_bonus': 'Economy Rate Bonus',
-      'economy_rate_penalty': 'Economy Rate Penalty',
+      'three_wicket_haul': '3 Wicket Haul',
+      'four_wicket_haul': '4 Wicket Haul',
+      'five_wicket_haul': '5 Wicket Haul',
+      'economy_rate': 'Economy Rate',
       'catch': 'Catch',
       'run_out': 'Run Out',
       'stumping': 'Stumping',
       'direct_hit': 'Direct Hit',
-      'bowled_bonus': 'Bowled Bonus',
-      'lbw_bonus': 'LBW Bonus',
-      'caught_bonus': 'Caught Bonus',
-      'stump_bonus': 'Stumping Bonus',
-      'runout_bonus': 'Run Out Bonus',
-      'economy_rate': 'Economy Rate',
-      'strike_rate': 'Strike Rate',
+      'economy_bonus': 'Economy Bonus',
+      'economy_penalty': 'Economy Penalty',
+      'strike_rate_bonus': 'Strike Rate Bonus',
+      'strike_rate_penalty': 'Strike Rate Penalty',
       'milestone_bonus': 'Milestone Bonus',
-      'captain': 'Captain Multiplier',
-      'vice_captain': 'Vice Captain Multiplier',
+      'captain': 'Captain',
+      'vice_captain': 'Vice Captain',
       'player_of_match': 'Player of Match',
       
       // Football actions
@@ -334,7 +264,7 @@ export default function ScoringRulesTab({
       'goals_conceded': 'Goals Conceded',
       'save': 'Save',
       'penalty_save': 'Penalty Save',
-      'catch_gk': 'Catch (GK)',
+      'catch_gk': 'Catch (GK)', // Changed from 'catch' to 'catch_gk'
       'punch_clear': 'Punch/Clear',
       'goals_conceded_gk': 'Goals Conceded (GK)',
       'yellow_card': 'Yellow Card',
@@ -350,403 +280,202 @@ export default function ScoringRulesTab({
     return actionMap[actionType] || actionType.replace('_', ' ');
   }
 
-  // Get category display name
-  const getCategoryDisplayName = (category: string) => {
-    return category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+  // Get position display name
+  const getPositionDisplayName = (position?: string) => {
+    if (!position || position === 'any') return 'Any';
+    const positionMap: Record<string, string> = {
+      'goalkeeper': 'Goalkeeper',
+      'defender': 'Defender',
+      'midfielder': 'Midfielder',
+      'forward': 'Forward'
+    };
+    return positionMap[position] || position;
   }
 
-  // Get points display
-  const getPointsDisplay = (rule: ScoringRule) => {
-    if (rule.actionType === 'captain' || rule.actionType === 'vice_captain') {
-      return `×${rule.points}`;
-    }
-    if (rule.points > 0) {
-      return `+${rule.points}`;
-    }
-    return rule.points.toString();
-  }
+  // Group scoring rules by category
+  const groupedRules = useMemo(() => {
+    const groups: Record<string, ScoringRule[]> = {};
+    
+    sportCategories.forEach(category => {
+      const categoryRules = rules.filter(r => r.category === category);
+      if (categoryRules.length > 0) {
+        groups[category] = categoryRules;
+      }
+    });
+    
+    return groups;
+  }, [rules, sportCategories]);
 
   // Get current action types for the selected category
   const currentActionTypes = useMemo(() => {
     return sportActionTypes[ruleForm.category as keyof typeof sportActionTypes] || [];
   }, [ruleForm.category, sportActionTypes]);
 
-  // Get default points based on action type
-  const getDefaultPoints = (actionType: string) => {
-    const defaultPoints: Record<string, number> = {
-      'run': 1,
-      'boundary_four': 1,
-      'boundary_six': 2,
-      'thirty': 4,
-      'seventy_five': 8,
-      'half_century': 8,
-      'century': 16,
-      'duck': -5,
-      'wicket': 25,
-      'maiden_over': 5,
-      'dot_ball': 0.5,
-      'three_wicket_haul': 4,
-      'four_wicket_haul': 8,
-      'five_wicket_haul': 12,
-      'catch': 8,
-      'run_out': 12,
-      'stumping': 12,
-      'direct_hit': 6,
-      'bowled_bonus': 8,
-      'lbw_bonus': 8,
-      'caught_bonus': 0,
-      'stump_bonus': 12,
-      'runout_bonus': 12,
-      'strike_rate_bonus': 6,
-      'strike_rate_penalty': -6,
-      'economy_rate_bonus': 6,
-      'economy_rate_penalty': -6,
-      'captain': 2,
-      'vice_captain': 1.5,
-      'player_of_match': 50,
-      // Football defaults
-      'goal_forward': 6,
-      'goal_midfielder': 5,
-      'goal_defender': 6,
-      'goal_goalkeeper': 10,
-      'assist': 3,
-      'clean_sheet': 4,
-      'penalty_save': 5,
-      'penalty_miss': -2,
-      'yellow_card': -1,
-      'red_card': -3,
-      'own_goal': -2
-    };
-    
-    return defaultPoints[actionType] || 0;
-  };
-
-  // Filter rules based on selected filters
-  const filteredRules = useMemo(() => {
-    return rules.filter(rule => {
-      // Format filter
-      if (selectedFormat !== "all") {
-        const hasFormat = rule.matchFormats?.includes(selectedFormat);
-        if (!hasFormat) return false;
-      }
-      
-      // Category filter
-      if (selectedCategory !== "all") {
-        if (rule.category !== selectedCategory) return false;
-      }
-      
-      return true;
-    });
-  }, [rules, selectedFormat, selectedCategory]);
-
-  // Clear all filters
-  const clearFilters = () => {
-    setSelectedFormat("all");
-    setSelectedCategory("all");
-  };
-
-  // Update points when action type changes
-  const handleActionTypeChange = (value: string) => {
-    const defaultPoints = getDefaultPoints(value)
-    setRuleForm({ 
-      ...ruleForm, 
-      actionType: value,
-      points: defaultPoints
-    })
-  }
-
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <CardTitle>Scoring Rules</CardTitle>
-                <CardDescription>Configure scoring rules for {sportName}</CardDescription>
-              </div>
-              <Button onClick={() => handleOpenDialog()} className="w-full sm:w-auto">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Scoring Rule
-              </Button>
-            </div>
-            
-            {/* Filter section */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 pt-2 border-t">
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Filters:</span>
-              </div>
-              
-              <div className="flex flex-wrap items-center gap-4">
-                {/* Format filter */}
-                <div className="space-y-1">
-                  <Label htmlFor="format-filter" className="text-xs">Format</Label>
-                  <Select
-                    value={selectedFormat}
-                    onValueChange={setSelectedFormat}
-                  >
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Select format" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Formats</SelectItem>
-                      {sportMatchFormats.map((format) => (
-                        <SelectItem key={format} value={format}>
-                          {format}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                {/* Category filter */}
-                <div className="space-y-1">
-                  <Label htmlFor="category-filter" className="text-xs">Category</Label>
-                  <Select
-                    value={selectedCategory}
-                    onValueChange={setSelectedCategory}
-                  >
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Categories</SelectItem>
-                      {sportCategories.map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {getCategoryDisplayName(category)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                {/* Clear filters button */}
-                {(selectedFormat !== "all" || selectedCategory !== "all") && (
-                  <div className="space-y-1">
-                    <Label className="text-xs opacity-0">Clear</Label>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={clearFilters}
-                      className="h-10"
-                    >
-                      Clear Filters
-                    </Button>
-                  </div>
-                )}
-                
-                {/* Active filter badges */}
-                <div className="flex flex-wrap gap-2">
-                  {selectedFormat !== "all" && (
-                    <Badge variant="secondary" className="flex items-center gap-1">
-                      Format: {selectedFormat}
-                      <button
-                        onClick={() => setSelectedFormat("all")}
-                        className="ml-1 hover:text-destructive"
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <p className="text-sm text-muted-foreground">Configure scoring rules for {sportName}</p>
+        <Button onClick={() => handleOpenDialog()} className="w-full sm:w-auto">
+          <Plus className="mr-2 h-4 w-4" />
+          Add Scoring Rule
+        </Button>
+      </div>
+
+      {/* Group scoring rules by category */}
+      {Object.keys(groupedRules).length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          No scoring rules configured. Click "Add Scoring Rule" to create one.
+        </p>
+      ) : (
+        Object.entries(groupedRules).map(([category, categoryRules]) => (
+          <div key={category} className="space-y-3">
+            <h3 className="text-lg font-semibold capitalize">{category.replace('_', ' ')} Rules</h3>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {categoryRules.map((rule) => (
+                <Card key={rule.id} className="max-w-md">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <CardTitle className="text-lg">{rule.name}</CardTitle>
+                        <CardDescription className="mt-1 line-clamp-2">{rule.description}</CardDescription>
+                      </div>
+                      <div className="flex gap-2">
+                        <Switch 
+                          checked={rule.isActive} 
+                          onCheckedChange={() => onToggleRule(rule.id)}
+                          disabled={isLoading}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => onToggleLock(rule.id)}
+                          disabled={isLoading}
+                        >
+                          {rule.isLocked ? <Lock className="h-4 w-4" /> : <LockOpen className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex gap-2">
+                      <Badge variant={rule.isActive ? "default" : "secondary"}>
+                        {rule.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                      <Badge variant={rule.isLocked ? "destructive" : "outline"}>
+                        {rule.isLocked ? "Locked" : "Editable"}
+                      </Badge>
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Points Details:</p>
+                      <div className="text-sm">
+                        {rule.category === 'economy' || rule.category === 'strike_rate' ? (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Range:</span>
+                            <span className="font-medium">{rule.rangeMin} - {rule.rangeMax}</span>
+                          </div>
+                        ) : rule.actionType?.includes('milestone') ? (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Milestone:</span>
+                            <span className="font-medium">{rule.minValue}+</span>
+                          </div>
+                        ) : rule.actionType?.includes('range') ? (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Range:</span>
+                            <span className="font-medium">{rule.minValue} - {rule.maxValue}</span>
+                          </div>
+                        ) : (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Action:</span>
+                            <span className="font-medium">{getActionDisplayName(rule.actionType || '')}</span>
+                          </div>
+                        )}
+                        
+                        {/* Position display for football */}
+                        {isFootball && rule.position && (
+                          <div className="flex justify-between mt-1">
+                            <span className="text-muted-foreground">Position:</span>
+                            <span className="font-medium">{getPositionDisplayName(rule.position)}</span>
+                          </div>
+                        )}
+                        
+                        <div className="flex justify-between mt-1">
+                          <span className="text-muted-foreground">Points:</span>
+                          <span className="font-medium">{rule.points > 0 ? '+' : ''}{rule.points}</span>
+                        </div>
+                        
+                        {/* Minutes played for appearance */}
+                        {rule.category === 'appearance' && rule.minutesPlayed && (
+                          <div className="flex justify-between mt-1">
+                            <span className="text-muted-foreground">Minutes:</span>
+                            <span className="font-medium">{rule.minutesPlayed}+</span>
+                          </div>
+                        )}
+                        
+                        {/* Goals conceded interval */}
+                        {rule.actionType === 'goals_conceded' && rule.goalsConcededInterval && (
+                          <div className="flex justify-between mt-1">
+                            <span className="text-muted-foreground">Per {rule.goalsConcededInterval} goals:</span>
+                          </div>
+                        )}
+                        
+                        {/* Penalty flag */}
+                        {rule.isPenalty && (
+                          <div className="flex justify-between mt-1">
+                            <span className="text-muted-foreground">Penalty:</span>
+                            <span className="font-medium">Yes</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {rule.minRequirement && (
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">Min Requirement: </span>
+                        <span className="font-medium">{rule.minRequirement}</span>
+                      </div>
+                    )}
+
+                    <div className="pt-2">
+                      <p className="text-sm font-medium mb-1">Match Formats:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {rule.matchFormats?.map((format) => (
+                          <Badge key={format} variant="outline" className="text-xs">
+                            {format}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleOpenDialog(rule)}
+                        className="flex-1"
+                        disabled={rule.isLocked || isLoading}
                       >
-                        ×
-                      </button>
-                    </Badge>
-                  )}
-                  {selectedCategory !== "all" && (
-                    <Badge variant="secondary" className="flex items-center gap-1">
-                      Category: {getCategoryDisplayName(selectedCategory)}
-                      <button
-                        onClick={() => setSelectedCategory("all")}
-                        className="ml-1 hover:text-destructive"
+                        <Edit2 className="h-3 w-3 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onDeleteRule(rule.id)}
+                        className="flex-1"
+                        disabled={rule.isLocked || isLoading}
                       >
-                        ×
-                      </button>
-                    </Badge>
-                  )}
-                </div>
-              </div>
+                        <Trash2 className="h-3 w-3 mr-1 text-destructive" />
+                        Delete
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           </div>
-        </CardHeader>
-        <CardContent>
-          {filteredRules.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">
-                {selectedFormat !== "all" || selectedCategory !== "all" 
-                  ? "No scoring rules found for the selected filters." 
-                  : "No scoring rules configured. Click 'Add Scoring Rule' to create one."}
-              </p>
-              {(selectedFormat !== "all" || selectedCategory !== "all") && (
-                <Button variant="outline" onClick={clearFilters} className="mt-4">
-                  Clear Filters
-                </Button>
-              )}
-            </div>
-          ) : (
-            <div className="rounded-md border">
-              <div className="relative w-full overflow-auto">
-                <table className="w-full caption-bottom text-sm">
-                  <thead className="border-b">
-                    <tr className="border-b transition-colors hover:bg-muted/50">
-                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                        Rule Name
-                      </th>
-                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                        Category
-                      </th>
-                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                        Action
-                      </th>
-                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                        Points
-                      </th>
-                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                        Match Formats
-                      </th>
-                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                        Status
-                      </th>
-                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredRules.map((rule) => (
-                      <tr key={rule.id} className="border-b transition-colors hover:bg-muted/50">
-                        <td className="p-4 align-middle">
-                          <div className="space-y-1">
-                            <div className="font-medium">{rule.name}</div>
-                            <div className="text-xs text-muted-foreground line-clamp-2">
-                              {rule.description || "No description"}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="p-4 align-middle">
-                          <Badge variant="outline">
-                            {getCategoryDisplayName(rule.category || "Uncategorized")}
-                          </Badge>
-                        </td>
-                        <td className="p-4 align-middle">
-                          <div className="space-y-1">
-                            <div className="text-sm font-medium">
-                              {getActionDisplayName(rule.actionType || "unknown")}
-                            </div>
-                            {/* Display additional details if needed */}
-                            {rule.position && rule.position !== 'any' && (
-                              <div className="text-xs text-muted-foreground">
-                                Position: {rule.position}
-                              </div>
-                            )}
-                            {rule.minutesPlayed && (
-                              <div className="text-xs text-muted-foreground">
-                                Min: {rule.minutesPlayed}+ mins
-                              </div>
-                            )}
-                            {rule.thresholdValue && (
-                              <div className="text-xs text-muted-foreground">
-                                Threshold: {rule.thresholdValue}
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="p-4 align-middle">
-                          <div className="flex flex-col gap-1">
-                            <div className={`text-lg font-semibold ${
-                              rule.points > 0 ? 'text-green-600' : 
-                              rule.points < 0 ? 'text-red-600' : 
-                              'text-gray-600'
-                            }`}>
-                              {getPointsDisplay(rule)}
-                              {rule.actionType === 'run' ? ' per run' : 
-                               rule.actionType === 'dot_ball' ? ' per dot ball' :
-                               rule.actionType === 'wicket' ? ' per wicket' : ''}
-                            </div>
-                            {rule.actionType === 'captain' || rule.actionType === 'vice_captain' ? (
-                              <div className="text-xs text-muted-foreground">Multiplier</div>
-                            ) : null}
-                          </div>
-                        </td>
-                        <td className="p-4 align-middle">
-                          <div className="flex flex-wrap gap-1">
-                            {rule.matchFormats?.slice(0, 3).map((format) => (
-                              <Badge key={format} variant="secondary" className="text-xs">
-                                {format}
-                              </Badge>
-                            ))}
-                            {rule.matchFormats && rule.matchFormats.length > 3 && (
-                              <Badge variant="outline" className="text-xs">
-                                +{rule.matchFormats.length - 3} more
-                              </Badge>
-                            )}
-                          </div>
-                        </td>
-                        <td className="p-4 align-middle">
-                          <div className="flex items-center gap-2">
-                            <Badge variant={rule.isActive ? "default" : "secondary"}>
-                              {rule.isActive ? "Active" : "Inactive"}
-                            </Badge>
-                            <Badge variant={rule.isLocked ? "destructive" : "outline"}>
-                              {rule.isLocked ? "Locked" : "Editable"}
-                            </Badge>
-                          </div>
-                        </td>
-                        <td className="p-4 align-middle">
-                          <div className="flex items-center gap-2">
-                            <Switch 
-                              checked={rule.isActive} 
-                              onCheckedChange={() => onToggleRule(rule.id)}
-                              disabled={isLoading || rule.isLocked}
-                            />
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => onToggleLock(rule.id)}
-                              disabled={isLoading}
-                            >
-                              {rule.isLocked ? (
-                                <Lock className="h-4 w-4" />
-                              ) : (
-                                <LockOpen className="h-4 w-4" />
-                              )}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleOpenDialog(rule)}
-                              disabled={rule.isLocked || isLoading}
-                            >
-                              <Edit2 className="h-3 w-3 mr-1" />
-                              Edit
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => onDeleteRule(rule.id)}
-                              disabled={rule.isLocked || isLoading}
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            >
-                              <Trash2 className="h-3 w-3 mr-1" />
-                              Delete
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-          
-          {/* Show filtered count */}
-          {rules.length > 0 && (
-            <div className="mt-4 text-sm text-muted-foreground">
-              Showing {filteredRules.length} of {rules.length} rules
-              {(selectedFormat !== "all" || selectedCategory !== "all") && (
-                <span> (filtered)</span>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        ))
+      )}
 
       {/* Scoring Rule Dialog */}
       <Dialog key={editingRule?.id || "new-rule"} open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -786,14 +515,12 @@ export default function ScoringRulesTab({
                   value={ruleForm.category}
                   onValueChange={(value) => {
                     const actionTypes = sportActionTypes[value as keyof typeof sportActionTypes];
-                    const defaultActionForCategory = actionTypes && actionTypes.length > 0 ? actionTypes[0] : (isFootball ? "goal_forward" : "run");
                     setRuleForm({ 
-                        ...ruleForm, 
-                        category: value, 
-                        actionType: defaultActionForCategory,
-                        points: getDefaultPoints(defaultActionForCategory)
+                      ...ruleForm, 
+                      category: value, 
+                      actionType: actionTypes && actionTypes.length > 0 ? actionTypes[0] : defaultAction
                     })
-                    }}
+                  }}
                   disabled={isSaving}
                 >
                   <SelectTrigger>
@@ -813,7 +540,7 @@ export default function ScoringRulesTab({
                 <Label htmlFor="action-type">Action Type</Label>
                 <Select
                   value={ruleForm.actionType}
-                  onValueChange={handleActionTypeChange}
+                  onValueChange={(value) => setRuleForm({ ...ruleForm, actionType: value })}
                   disabled={isSaving}
                 >
                   <SelectTrigger>
@@ -823,7 +550,7 @@ export default function ScoringRulesTab({
                     {currentActionTypes.length > 0 ? (
                       currentActionTypes.map((action) => (
                         <SelectItem key={action} value={action}>
-                          {getActionDisplayName(action)} ({getDefaultPoints(action)} points)
+                          {getActionDisplayName(action)}
                         </SelectItem>
                       ))
                     ) : (
@@ -837,13 +564,10 @@ export default function ScoringRulesTab({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="points">
-                {ruleForm.actionType === 'captain' || ruleForm.actionType === 'vice_captain' ? 'Multiplier' : 'Points'}
-              </Label>
+              <Label htmlFor="points">Points</Label>
               <Input
                 id="points"
                 type="number"
-                step="0.01"
                 value={ruleForm.points}
                 onChange={(e) => setRuleForm({ ...ruleForm, points: Number.parseFloat(e.target.value) || 0 })}
                 disabled={isSaving}
@@ -885,7 +609,7 @@ export default function ScoringRulesTab({
                       type="number"
                       placeholder="e.g., 60 for 60+ minutes"
                       value={ruleForm.minutesPlayed || ''}
-                      onChange={(e) => setRuleForm({ ...ruleForm, minutesPlayed: Number.parseInt(e.target.value) || undefined })}
+                      onChange={(e) => setRuleForm({ ...ruleForm, minutesPlayed: Number.parseInt(e.target.value) })}
                       disabled={isSaving}
                     />
                   </div>
@@ -929,90 +653,63 @@ export default function ScoringRulesTab({
             {/* Cricket-specific conditional fields */}
             {isCricket && (
               <>
-                {/* Strike Rate/Economy Rate thresholds */}
-                {(ruleForm.actionType === 'strike_rate_bonus' || ruleForm.actionType === 'strike_rate_penalty' || 
-                  ruleForm.actionType === 'economy_rate_bonus' || ruleForm.actionType === 'economy_rate_penalty') && (
-                  <>
-                    <div className="space-y-2">
-                      <Label htmlFor="threshold-value">
-                        {ruleForm.actionType?.includes('strike_rate') ? 'Strike Rate Threshold' : 'Economy Rate Threshold'}
-                      </Label>
-                      <Input
-                        id="threshold-value"
-                        type="number"
-                        step="0.01"
-                        placeholder={ruleForm.actionType?.includes('strike_rate') ? 
-                          (ruleForm.actionType === 'strike_rate_bonus' ? "e.g., 70.00" : "e.g., 50.00") : 
-                          (ruleForm.actionType === 'economy_rate_bonus' ? "e.g., 5.00" : "e.g., 9.00")}
-                        value={ruleForm.thresholdValue || ''}
-                        onChange={(e) => setRuleForm({ ...ruleForm, thresholdValue: Number.parseFloat(e.target.value) || undefined })}
-                        disabled={isSaving}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="min-requirement">Minimum Requirement</Label>
-                      <Input
-                        id="min-requirement"
-                        type="number"
-                        placeholder={ruleForm.actionType?.includes('strike_rate') ? "e.g., 10 balls" : "e.g., 2 overs"}
-                        value={ruleForm.minRequirement || ''}
-                        onChange={(e) => setRuleForm({ ...ruleForm, minRequirement: Number.parseInt(e.target.value) || undefined })}
-                        disabled={isSaving}
-                      />
-                    </div>
-                  </>
-                )}
-
-                {/* Milestone thresholds */}
-                {(ruleForm.actionType === 'thirty' || ruleForm.actionType === 'seventy_five' || 
-                  ruleForm.actionType === 'half_century' || ruleForm.actionType === 'century' ||
-                  ruleForm.actionType === 'three_wicket_haul' || ruleForm.actionType === 'four_wicket_haul' || 
-                  ruleForm.actionType === 'five_wicket_haul') && (
+                {ruleForm.actionType?.includes('milestone') && (
                   <div className="space-y-2">
                     <Label htmlFor="min-value">Milestone Value</Label>
                     <Input
                       id="min-value"
                       type="number"
-                      placeholder={
-                        ruleForm.actionType === 'thirty' ? "30" : 
-                        ruleForm.actionType === 'seventy_five' ? "75" :
-                        ruleForm.actionType === 'half_century' ? "50" : 
-                        ruleForm.actionType === 'century' ? "100" :
-                        ruleForm.actionType === 'three_wicket_haul' ? "3" :
-                        ruleForm.actionType === 'four_wicket_haul' ? "4" : "5"
-                      }
+                      placeholder={ruleForm.actionType === 'thirty' ? "30" : ruleForm.actionType === 'half_century' ? "50" : "100"}
                       value={ruleForm.minValue || ''}
-                      onChange={(e) => setRuleForm({ ...ruleForm, minValue: Number.parseInt(e.target.value) || undefined })}
+                      onChange={(e) => setRuleForm({ ...ruleForm, minValue: Number.parseInt(e.target.value) })}
                       disabled={isSaving}
                     />
                   </div>
                 )}
 
-                {/* Wicket type selector */}
-                {ruleForm.category === 'wicket_type' && (
-                  <div className="space-y-2">
-                    <Label htmlFor="wicket-type">Wicket Type</Label>
-                    <Select
-                      value={ruleForm.wicketType || 'bowled'}
-                      onValueChange={(value) => setRuleForm({ ...ruleForm, wicketType: value })}
-                      disabled={isSaving}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select wicket type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="bowled">Bowled</SelectItem>
-                        <SelectItem value="lbw">LBW</SelectItem>
-                        <SelectItem value="caught">Caught</SelectItem>
-                        <SelectItem value="stumped">Stumped</SelectItem>
-                        <SelectItem value="run_out">Run Out</SelectItem>
-                      </SelectContent>
-                    </Select>
+                {(ruleForm.actionType === 'range' || ruleForm.category === 'economy' || ruleForm.category === 'strike_rate') && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="range-min">Range Min</Label>
+                      <Input
+                        id="range-min"
+                        type="number"
+                        step="0.01"
+                        placeholder={ruleForm.category === 'economy' ? "e.g., 0.00" : "e.g., 100.00"}
+                        value={ruleForm.rangeMin || ''}
+                        onChange={(e) => setRuleForm({ ...ruleForm, rangeMin: Number.parseFloat(e.target.value) })}
+                        disabled={isSaving}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="range-max">Range Max</Label>
+                      <Input
+                        id="range-max"
+                        type="number"
+                        step="0.01"
+                        placeholder={ruleForm.category === 'economy' ? "e.g., 5.00" : "e.g., 200.00"}
+                        value={ruleForm.rangeMax || ''}
+                        onChange={(e) => setRuleForm({ ...ruleForm, rangeMax: Number.parseFloat(e.target.value) })}
+                        disabled={isSaving}
+                      />
+                    </div>
                   </div>
                 )}
 
-                {/* Exclude runout for wicket points */}
+                {(ruleForm.category === 'economy' || ruleForm.category === 'strike_rate') && (
+                  <div className="space-y-2">
+                    <Label htmlFor="min-requirement">Minimum Requirement</Label>
+                    <Input
+                      id="min-requirement"
+                      type="number"
+                      placeholder="e.g., 2 overs, 10 balls"
+                      value={ruleForm.minRequirement || ''}
+                      onChange={(e) => setRuleForm({ ...ruleForm, minRequirement: Number.parseInt(e.target.value) })}
+                      disabled={isSaving}
+                    />
+                  </div>
+                )}
+
                 {ruleForm.actionType === 'wicket' && (
                   <div className="flex items-center space-x-2">
                     <Checkbox
@@ -1022,60 +719,8 @@ export default function ScoringRulesTab({
                       disabled={isSaving}
                     />
                     <Label htmlFor="exclude-runout" className="text-sm font-normal">
-                      Exclude run-out wickets from wicket points
+                      Exclude run-out wickets
                     </Label>
-                  </div>
-                )}
-
-                {/* Boundary type for boundary points */}
-                {ruleForm.actionType === 'boundary_four' || ruleForm.actionType === 'boundary_six' ? (
-                  <div className="space-y-2">
-                    <Label htmlFor="boundary-type">Boundary Type</Label>
-                    <Select
-                      value={ruleForm.boundaryType || 'any'}
-                      onValueChange={(value) => setRuleForm({ ...ruleForm, boundaryType: value })}
-                      disabled={isSaving}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select boundary type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="any">Any Boundary</SelectItem>
-                        <SelectItem value="ground">Ground Shot</SelectItem>
-                        <SelectItem value="air">Air Shot</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ) : null}
-
-                {/* Multiplier fields for cricket */}
-                {ruleForm.category === 'batting' && (
-                  <div className="space-y-2">
-                    <Label htmlFor="batting-multiplier">Batting Point Multiplier</Label>
-                    <Input
-                      id="batting-multiplier"
-                      type="number"
-                      step="0.01"
-                      placeholder="e.g., 1.00"
-                      value={ruleForm.battingPointMultiplier || ''}
-                      onChange={(e) => setRuleForm({ ...ruleForm, battingPointMultiplier: Number.parseFloat(e.target.value) || undefined })}
-                      disabled={isSaving}
-                    />
-                  </div>
-                )}
-
-                {ruleForm.category === 'bowling' && (
-                  <div className="space-y-2">
-                    <Label htmlFor="bowling-multiplier">Bowling Point Multiplier</Label>
-                    <Input
-                      id="bowling-multiplier"
-                      type="number"
-                      step="0.01"
-                      placeholder="e.g., 1.00"
-                      value={ruleForm.bowlingPointMultiplier || ''}
-                      onChange={(e) => setRuleForm({ ...ruleForm, bowlingPointMultiplier: Number.parseFloat(e.target.value) || undefined })}
-                      disabled={isSaving}
-                    />
                   </div>
                 )}
               </>
@@ -1105,51 +750,6 @@ export default function ScoringRulesTab({
                   • Extra-Time Match: 120 minutes (90 + 30)
                 </p>
               )}
-              {isCricket && (
-                <p className="text-xs text-muted-foreground mt-2">
-                  • T20: 20 overs per innings<br/>
-                  • ODI: 50 overs per innings<br/>
-                  • Test: 5 days, 90 overs per day<br/>
-                  • T10: 10 overs per innings
-                </p>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="is-active"
-                  checked={ruleForm.isActive}
-                  onCheckedChange={(checked) => setRuleForm({ ...ruleForm, isActive: checked })}
-                  disabled={isSaving}
-                />
-                <Label htmlFor="is-active">Active Rule</Label>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="is-locked"
-                  checked={ruleForm.isLocked}
-                  onCheckedChange={(checked) => setRuleForm({ ...ruleForm, isLocked: checked })}
-                  disabled={isSaving}
-                />
-                <Label htmlFor="is-locked">Lock Rule (Prevent Editing)</Label>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="display-order">Display Order</Label>
-              <Input
-                id="display-order"
-                type="number"
-                placeholder="0"
-                value={ruleForm.displayOrder}
-                onChange={(e) => setRuleForm({ ...ruleForm, displayOrder: Number.parseInt(e.target.value) || 0 })}
-                disabled={isSaving}
-              />
-              <p className="text-xs text-muted-foreground">
-                Lower numbers appear first in the list
-              </p>
             </div>
           </div>
           

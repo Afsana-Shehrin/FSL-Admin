@@ -22,15 +22,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "sonner"
-import { createClient } from '@supabase/supabase-js'
+import { getSupabase } from '@/lib/supabase/working-client'
 
 // Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://kfbrjmfbunhrdqfavvjw.supabase.co'
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmYnJqbWZidW5ocmRxZmF2dmp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU4MjEyODEsImV4cCI6MjA4MTM5NzI4MX0.u1Kuram-0SVjiOcUQq5iSO7J_Ul8gos9t9nME01c52E'
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmYnJqbWZidW5ocmRxZmF2dmp3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTgyMTI4MSwiZXhwIjoyMDgxMzk3MjgxfQ.s1IYBZfUbAn5kvLHbI90fyvbXM2O2VvzqHLSH7fiMyA'
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+const supabase = getSupabase()
 
 // Types
 type Player = {
@@ -353,6 +348,10 @@ export default function PlayersPage() {
       toast.error('Sport is required')
       return
     }
+    if (!formData.league_id) {
+      toast.error('League is required')
+      return
+    }
     if (!formData.team_id) {
       toast.error('Team is required')
       return
@@ -373,9 +372,10 @@ export default function PlayersPage() {
         player_name: formData.player_name.trim(),
         first_name: formData.first_name.trim() || null,
         last_name: formData.last_name.trim() || null,
-        jersey_number: formData.jersey_number ? parseInt(formData.jersey_number) : null, // Added jersey number
+        jersey_number: formData.jersey_number ? parseInt(formData.jersey_number) : null,
         sport_id: parseInt(formData.sport_id),
         team_id: parseInt(formData.team_id),
+        league_id: parseInt(formData.league_id),
         primary_position_id: parseInt(formData.primary_position_id),
         player_type: formData.player_type || null,
         player_role: formData.player_role ? parseInt(formData.player_role) : null,

@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey)
+import { getAdminClient } from '@/lib/supabase/admin-lazy'
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const supabase = getAdminClient()
     const sportId = parseInt(params.id)
     if (isNaN(sportId)) {
       return NextResponse.json(
@@ -101,6 +97,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    const supabase = getAdminClient()
     const sportId = parseInt(params.id)
     if (isNaN(sportId)) {
       return NextResponse.json(
