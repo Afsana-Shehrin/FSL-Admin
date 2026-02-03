@@ -6,19 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import LeaguesTab from "./leagues"
 import SeasonsTab from "./seasons"
-<<<<<<< HEAD
-import { createClient } from '@supabase/supabase-js'
-
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-const supabase = createClient(supabaseUrl!, supabaseAnonKey!)
-=======
 import { getSupabase } from '@/lib/supabase/working-client'
 
 // Initialize Supabase client
 const supabase = getSupabase()
->>>>>>> otherrepo/main
 
 // Type for Sport
 type Sport = {

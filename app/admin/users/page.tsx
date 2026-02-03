@@ -2,11 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useToast } from "@/hooks/use-toast"
-<<<<<<< HEAD
-import { createClient } from '@supabase/supabase-js'
-=======
 import { getSupabase } from '@/lib/supabase/working-client'
->>>>>>> otherrepo/main
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,15 +15,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-<<<<<<< HEAD
-// Initialize Supabase client directly
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
-=======
 // Initialize Supabase client
 const supabase = getSupabase()
->>>>>>> otherrepo/main
 
 // Define User type based on your database schema
 interface DatabaseUser {
@@ -61,11 +50,12 @@ export default function UsersPage() {
 
   // Check if Supabase is properly configured
   useEffect(() => {
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.error('Missing Supabase environment variables!')
+    // Check if Supabase client is properly initialized
+    if (!supabase) {
+      console.error('Supabase client is not properly initialized!')
       toast({
         title: "Configuration Error",
-        description: "Supabase is not properly configured. Please check your environment variables.",
+        description: "Supabase client is not properly configured.",
         variant: "destructive",
       })
     }
