@@ -36,10 +36,10 @@ type Fixture = {
   kickoff_time: string
   home_score: number | null
   away_score: number | null
-  fixture_status: 'scheduled' | 'live' | 'completed' | 'postponed'
+  fixture_status: 'scheduled' | 'live' | 'completed' | 'abandoned'
   is_finished: boolean
   match_stats: any
-  venue: string | null  // Add this
+  venue: string | null
   created_at: string
   home_team_name?: string
   away_team_name?: string
@@ -77,7 +77,7 @@ type Gameweek = {
   gameweek_id: number
   gameweek_name: string
   gameweek_number: number
-  season_id:number
+  season_id: number
 }
 
 type Season = {
@@ -134,7 +134,7 @@ export default function FixturesTab() {
   const [editingFixture, setEditingFixture] = useState<Fixture | null>(null)
   const [loading, setLoading] = useState(true)
   const [filteredSeasons, setFilteredSeasons] = useState<Season[]>([])
-  const [activeSportTab, setActiveSportTab] = useState<string>("") // Start with no tab selected
+  const [activeSportTab, setActiveSportTab] = useState<string>("")
 
   const [fixtureFormData, setFixtureFormData] = useState({
     gameweek_id: "",
@@ -178,7 +178,6 @@ export default function FixturesTab() {
     } else if (name.includes("tennis") || name.includes("badminton")) {
       return { label: "Matchday", shortForm: "MD" };
     } else {
-      // Default for other sports
       return { label: "Gameweek", shortForm: "GW" };
     }
   }
@@ -199,35 +198,32 @@ export default function FixturesTab() {
 
   // Use useMemo to calculate filtered fixtures based on active sport tab
   const filteredFixtures = useMemo(() => {
-  if (!activeSportTab) return [];
-  
-  let filtered = fixtures.filter((fixture: Fixture) => 
-    fixture.sport_code?.toLowerCase() === activeSportTab.toLowerCase()
-  );
-  
-  // Then filter by search query
-  const searchFiltered = filtered.filter((fixture: Fixture) => {
-    const matchesSearch =
-      (fixture.home_team_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (fixture.away_team_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (fixture.season_name || "").toLowerCase().includes(searchQuery.toLowerCase())
+    if (!activeSportTab) return [];
+    
+    let filtered = fixtures.filter((fixture: Fixture) => 
+      fixture.sport_code?.toLowerCase() === activeSportTab.toLowerCase()
+    );
+    
+    const searchFiltered = filtered.filter((fixture: Fixture) => {
+      const matchesSearch =
+        (fixture.home_team_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (fixture.away_team_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (fixture.season_name || "").toLowerCase().includes(searchQuery.toLowerCase())
 
-    return matchesSearch
-  });
-  
-  // Sort by kickoff_time in descending order (newest first)
-  return searchFiltered.sort((a: Fixture, b: Fixture) => {
-    const dateA = new Date(a.kickoff_time).getTime();
-    const dateB = new Date(b.kickoff_time).getTime();
-    return dateB - dateA; // For descending order (newest first)
-  });
-}, [fixtures, searchQuery, activeSportTab])
+      return matchesSearch
+    });
+    
+    return searchFiltered.sort((a: Fixture, b: Fixture) => {
+      const dateA = new Date(a.kickoff_time).getTime();
+      const dateB = new Date(b.kickoff_time).getTime();
+      return dateB - dateA;
+    });
+  }, [fixtures, searchQuery, activeSportTab])
 
   // Calculate fixture counts using useMemo
   const sportCounts = useMemo(() => {
     const sportCounts: Record<string, number> = {}
     
-    // Count fixtures for each sport from all fixtures
     fixtures.forEach(fixture => {
       if (fixture.sport_code) {
         sportCounts[fixture.sport_code] = (sportCounts[fixture.sport_code] || 0) + 1
@@ -250,7 +246,6 @@ export default function FixturesTab() {
       )
       setFilteredSeasons(filtered)
       
-      // Auto-select first season if current season is not in filtered list
       if (fixtureFormData.season_id) {
         const currentSeasonExists = filtered.some(s => s.season_id.toString() === fixtureFormData.season_id)
         if (!currentSeasonExists && filtered.length > 0) {
@@ -260,7 +255,6 @@ export default function FixturesTab() {
           }))
         }
       } else if (filtered.length > 0) {
-        // Set first season if none selected
         setFixtureFormData(prev => ({
           ...prev,
           season_id: filtered[0].season_id.toString()
@@ -318,7 +312,6 @@ export default function FixturesTab() {
   // Fallback function for manual ID insertion
   const insertWithManualId = async (data: any) => {
     try {
-      // Get max ID from database
       const { data: maxIdData, error: maxIdError } = await supabase
         .from('fixtures')
         .select('fixture_id')
@@ -327,13 +320,11 @@ export default function FixturesTab() {
       
       if (maxIdError) throw maxIdError;
       
-      // Calculate next ID
       let nextId = 1;
       if (maxIdData && maxIdData.length > 0 && maxIdData[0].fixture_id) {
         nextId = maxIdData[0].fixture_id + 1;
       }
       
-      // Add manual ID to data
       const fixtureDataWithId = {
         ...data,
         fixture_id: nextId
@@ -353,120 +344,119 @@ export default function FixturesTab() {
     }
   }
 
-  
-// Update fetchData to include season_id when fetching gameweeks
-const fetchData = async () => {
-  try {
-    setLoading(true)
-    
-    // Fetch fixtures with related data
-    const { data: fixturesData, error: fixturesError } = await supabase
-      .from('fixtures')
-      .select(`
-        *,
-        home_team:home_team_id (team_name),
-        away_team:away_team_id (team_name),
-        sport:sport_id (sport_code, sport_name),
-        gameweek:gameweek_id (gameweek_name, gameweek_number),
-        season:season_id (season_name, year_start, year_end)
-      `)
-    
-    if (fixturesError) throw fixturesError
-    
-    // Transform the data to include nested fields
-    const transformedFixtures: Fixture[] = (fixturesData || []).map((fixture: any) => ({
-      ...fixture,
-      home_team_name: fixture.home_team?.team_name,
-      away_team_name: fixture.away_team?.team_name,
-      sport_code: fixture.sport?.sport_code,
-      sport_name: fixture.sport?.sport_name,
-      gameweek_name: fixture.gameweek?.gameweek_name,
-      gameweek_number: fixture.gameweek?.gameweek_number,
-      season_name: fixture.season?.season_name,
-      year_start: fixture.season?.year_start,
-      year_end: fixture.season?.year_end
-    }))
-    
-    setFixtures(transformedFixtures)
-
-    // Fetch other data including seasons and leagues
-    const [
-      gameweeksData, 
-      teamsData, 
-      sportsData, 
-      seasonsData,
-      leaguesData
-    ] = await Promise.all([
-      supabase.from('gameweeks').select('gameweek_id, gameweek_name, gameweek_number, season_id').order('gameweek_number'), // Include season_id
-      supabase.from('teams').select('*').order('team_name'),
-      supabase.from('sports').select('*').order('display_order'),
-      supabase.from('seasons')
+  const fetchData = async () => {
+    try {
+      setLoading(true)
+      
+      const { data: fixturesData, error: fixturesError } = await supabase
+        .from('fixtures')
         .select(`
           *,
-          league:league_id (league_name)
+          home_team:home_team_id (team_name),
+          away_team:away_team_id (team_name),
+          sport:sport_id (sport_code, sport_name),
+          gameweek:gameweek_id (gameweek_name, gameweek_number),
+          season:season_id (season_name, year_start, year_end)
         `)
-        .order('year_start', { ascending: false }),
-      supabase.from('leagues').select('*').order('league_name')
-    ])
-
-    if (gameweeksData.error) throw gameweeksData.error
-    if (teamsData.error) throw teamsData.error
-    if (sportsData.error) throw sportsData.error
-    if (seasonsData.error) throw seasonsData.error
-    if (leaguesData.error) throw leaguesData.error
-
-    // Add league_name to seasons
-    const seasonsWithLeagueName = (seasonsData.data || []).map((season: any) => ({
-      ...season,
-      league_name: season.league?.league_name
-    }))
-
-    setGameweeks(gameweeksData.data || [])
-    setTeams(teamsData.data || [])
-    setSports(sportsData.data || [])
-    setSeasons(seasonsWithLeagueName || [])
-    setLeagues(leaguesData.data || [])
-
-    // Set default sport and season (active season or first one)
-    const activeSport = sportsData.data?.[0]
-    if (activeSport) {
-      const activeSeason = seasonsWithLeagueName?.find((s: { is_active: any; sport_id: any }) => s.is_active && s.sport_id === activeSport.sport_id) 
-        || seasonsWithLeagueName?.find((s: { sport_id: any }) => s.sport_id === activeSport.sport_id)
-        || seasonsWithLeagueName?.[0]
       
-      if (activeSeason) {
-        const naming = getGameweekNaming(activeSport.sport_name);
-        setFixtureFormData(prev => ({
-          ...prev,
-          sport_id: activeSport.sport_id.toString(),
-          season_id: activeSeason.season_id.toString(),
-          gameweek_type: naming.label as GameweekType
-        }))
+      if (fixturesError) throw fixturesError
+      
+      const transformedFixtures: Fixture[] = (fixturesData || []).map((fixture: any) => ({
+        ...fixture,
+        home_team_name: fixture.home_team?.team_name,
+        away_team_name: fixture.away_team?.team_name,
+        sport_code: fixture.sport?.sport_code,
+        sport_name: fixture.sport?.sport_name,
+        gameweek_name: fixture.gameweek?.gameweek_name,
+        gameweek_number: fixture.gameweek?.gameweek_number,
+        season_name: fixture.season?.season_name,
+        year_start: fixture.season?.year_start,
+        year_end: fixture.season?.year_end
+      }))
+      
+      setFixtures(transformedFixtures)
+
+      const [
+        gameweeksData, 
+        teamsData, 
+        sportsData, 
+        seasonsData,
+        leaguesData
+      ] = await Promise.all([
+        supabase.from('gameweeks').select('gameweek_id, gameweek_name, gameweek_number, season_id').order('gameweek_number'),
+        supabase.from('teams').select('*').order('team_name'),
+        supabase.from('sports').select('*').order('display_order'),
+        supabase.from('seasons')
+          .select(`
+            *,
+            league:league_id (league_name)
+          `)
+          .order('year_start', { ascending: false }),
+        supabase.from('leagues').select('*').order('league_name')
+      ])
+
+      if (gameweeksData.error) throw gameweeksData.error
+      if (teamsData.error) throw teamsData.error
+      if (sportsData.error) throw sportsData.error
+      if (seasonsData.error) throw seasonsData.error
+      if (leaguesData.error) throw leaguesData.error
+
+      const seasonsWithLeagueName = (seasonsData.data || []).map((season: any) => ({
+        ...season,
+        league_name: season.league?.league_name
+      }))
+
+      setGameweeks(gameweeksData.data || [])
+      setTeams(teamsData.data || [])
+      setSports(sportsData.data || [])
+      setSeasons(seasonsWithLeagueName || [])
+      setLeagues(leaguesData.data || [])
+
+      const activeSport = sportsData.data?.[0]
+      if (activeSport) {
+        const activeSeason = seasonsWithLeagueName?.find((s: { is_active: any; sport_id: any }) => s.is_active && s.sport_id === activeSport.sport_id) 
+          || seasonsWithLeagueName?.find((s: { sport_id: any }) => s.sport_id === activeSport.sport_id)
+          || seasonsWithLeagueName?.[0]
+        
+        if (activeSeason) {
+          const naming = getGameweekNaming(activeSport.sport_name);
+          setFixtureFormData(prev => ({
+            ...prev,
+            sport_id: activeSport.sport_id.toString(),
+            season_id: activeSeason.season_id.toString(),
+            gameweek_type: naming.label as GameweekType
+          }))
+        }
+        
+        setActiveSportTab(activeSport.sport_code)
       }
-      
-      // Set first sport as active tab
-      setActiveSportTab(activeSport.sport_code)
+    } catch (error) {
+      console.error('Error fetching data:', error)
+    } finally {
+      setLoading(false)
     }
-  } catch (error) {
-    console.error('Error fetching data:', error)
-  } finally {
-    setLoading(false)
   }
-}
 
-const getGameweeksForSeason = (seasonId: string) => {
-  return gameweeks.filter(gw => gw.season_id.toString() === seasonId);
-}
+  const getGameweeksForSeason = (seasonId: string) => {
+    return gameweeks.filter(gw => gw.season_id.toString() === seasonId);
+  }
 
+  // Calculate winning team ID
+  const calculateWinningTeamId = (homeScore: number | null, awayScore: number | null, homeTeamId: number, awayTeamId: number): number | null => {
+    if (homeScore === null || awayScore === null) return null;
+    if (homeScore > awayScore) return homeTeamId;
+    if (awayScore > homeScore) return awayTeamId;
+    return null; // draw
+  };
 
-  
-// Update the handleSaveFixture function to use existing gameweeks
-const handleSaveFixture = async () => {
+  const handleSaveFixture = async () => {
   try {
+    console.log('📝 Starting fixture save...');
+    
     // Validate required fields
     if (!fixtureFormData.season_id || !fixtureFormData.sport_id || 
         !fixtureFormData.home_team_id || !fixtureFormData.away_team_id ||
-        !fixtureFormData.kickoff_time || !fixtureFormData.gameweek_id) {
+        !fixtureFormData.kickoff_time) {
       alert('Please fill all required fields (*)')
       return
     }
@@ -499,74 +489,166 @@ const handleSaveFixture = async () => {
       ? null 
       : Number(fixtureFormData.away_score)
 
-    // Auto-determine if finished based on status or scores
-    const isFinished = fixtureFormData.fixture_status === 'completed' || 
-      (homeScore !== null && awayScore !== null && fixtureFormData.is_finished)
+    // MANUAL LOGIC: Set is_finished based on status
+    const isFinished = fixtureFormData.fixture_status === 'completed';
+    
+    // If admin manually checked "Match Finished", respect that
+    const finalIsFinished = fixtureFormData.is_finished || isFinished;
+    
+    // MANUAL LOGIC: Calculate winning team ID
+    const homeTeamId = parseInt(fixtureFormData.home_team_id)
+    const awayTeamId = parseInt(fixtureFormData.away_team_id)
+    let winningTeamId = null;
+    
+    if (homeScore !== null && awayScore !== null) {
+      if (homeScore > awayScore) {
+        winningTeamId = homeTeamId;
+      } else if (awayScore > homeScore) {
+        winningTeamId = awayTeamId;
+      }
+      // null for draw
+    }
 
-    // Auto-update status if finished but status is scheduled
-    const finalStatus = isFinished ? 'completed' : fixtureFormData.fixture_status
-
-    // Prepare fixture data - use selected gameweek_id
+    // Prepare fixture data - ALL LOGIC IS MANUAL NOW
     const fixtureData: any = {
       season_id: parseInt(fixtureFormData.season_id),
       sport_id: parseInt(fixtureFormData.sport_id),
-      home_team_id: parseInt(fixtureFormData.home_team_id),
-      away_team_id: parseInt(fixtureFormData.away_team_id),
+      home_team_id: homeTeamId,
+      away_team_id: awayTeamId,
       kickoff_time: kickoffDate.toISOString(),
-      fixture_status: finalStatus,
+      fixture_status: fixtureFormData.fixture_status, // Use exactly what user selected
       home_score: homeScore,
       away_score: awayScore,
-      is_finished: isFinished,
-      gameweek_id: parseInt(fixtureFormData.gameweek_id),
+      is_finished: finalIsFinished, // Manual logic
       venue: fixtureFormData.venue || null,
+      winningteam_id: winningTeamId, // Manual calculation
+      updated_at: new Date().toISOString() // Manual timestamp
     }
 
-    console.log('Saving fixture data:', fixtureData);
+    // Handle gameweek_id
+    if (fixtureFormData.gameweek_id) {
+      fixtureData.gameweek_id = parseInt(fixtureFormData.gameweek_id);
+    } else if (editingFixture) {
+      fixtureData.gameweek_id = editingFixture.gameweek_id;
+    } else {
+      fixtureData.gameweek_id = null;
+    }
 
+    console.log('🚀 MANUAL fixture data to save:', fixtureData);
+    
+    let result;
     if (editingFixture) {
-      const { error } = await supabase
+      console.log('🔄 Updating fixture ID:', editingFixture.fixture_id);
+      
+      result = await supabase
         .from('fixtures')
         .update(fixtureData)
         .eq('fixture_id', editingFixture.fixture_id)
+        .select();
       
-      if (error) throw error
+      console.log('📨 Update response:', result);
+      
+      if (result.error) {
+        console.error('Supabase error:', result.error);
+        throw result.error;
+      }
+      
+      // Update local state immediately
+      const updatedFixture: Fixture = {
+        ...editingFixture,
+        ...fixtureData,
+        home_team_name: editingFixture.home_team_name,
+        away_team_name: editingFixture.away_team_name,
+        sport_code: editingFixture.sport_code,
+        sport_name: editingFixture.sport_name,
+        season_name: editingFixture.season_name,
+        year_start: editingFixture.year_start,
+        year_end: editingFixture.year_end,
+        gameweek_name: editingFixture.gameweek_name,
+        gameweek_number: editingFixture.gameweek_number
+      };
+      
+      setFixtures(prev => prev.map(f => 
+        f.fixture_id === editingFixture.fixture_id ? updatedFixture : f
+      ));
+      
+      console.log('✅ Local state updated');
+      
     } else {
-      // For new fixtures, let database handle auto-increment
-      const { error } = await supabase
+      console.log('➕ Inserting new fixture');
+      result = await supabase
         .from('fixtures')
         .insert([fixtureData])
+        .select();
       
-      if (error) {
-        // If duplicate key error, try to fix sequence
-        if (error.code === '23505') {
-          console.log('Duplicate key error, trying to fix sequence...');
-          // Try to insert with manual ID calculation as fallback
-          await insertWithManualId(fixtureData);
-        } else {
-          throw error;
-        }
-      }
+      console.log('📨 Insert response:', result);
+      
+      if (result.error) throw result.error;
+      
+      // Refresh data for new fixtures
+      await fetchData();
     }
 
-    setIsFixtureDialogOpen(false)
-    fetchData() // Refresh data
-  } catch (error) {
-    console.error('Error saving fixture:', error)
-    alert('Error saving fixture. Please try again.')
+    // Verify the update worked
+    if (editingFixture) {
+      setTimeout(async () => {
+        const { data: dbCheck } = await supabase
+          .from('fixtures')
+          .select('*')
+          .eq('fixture_id', editingFixture.fixture_id)
+          .single();
+        
+        console.log('✅ DATABASE VERIFICATION:', dbCheck);
+      }, 500);
+    }
+
+    // Close dialog and reset
+    setIsFixtureDialogOpen(false);
+    setEditingFixture(null);
+    
+    // Reset form
+    const activeSport = sports[0];
+    const activeSeason = activeSport 
+      ? seasons.find(s => s.is_active && s.sport_id === activeSport.sport_id) 
+      || seasons.find(s => s.sport_id === activeSport.sport_id)
+      || seasons[0]
+      : seasons[0];
+    
+    const naming = activeSport ? getGameweekNaming(activeSport.sport_name) : { label: 'Gameweek', shortForm: 'GW' };
+    
+    setFixtureFormData({
+      gameweek_id: "",
+      season_id: activeSeason ? activeSeason.season_id.toString() : "",
+      sport_id: activeSport ? activeSport.sport_id.toString() : "",
+      home_team_id: "",
+      away_team_id: "",
+      kickoff_time: "",
+      fixture_status: "scheduled",
+      home_score: undefined,
+      away_score: undefined,
+      is_finished: false,
+      gameweek_type: naming.label as GameweekType,
+      gameweek_number: undefined,
+      venue: "" 
+    });
+    
+    alert(editingFixture ? 'Fixture updated successfully!' : 'Fixture created successfully!');
+    
+  } catch (error: any) {
+    console.error('❌ Error saving fixture:', error);
+    alert(`Error saving fixture: ${error.message || 'Please check console for details'}`);
   }
 }
 
-const handleEditFixture = (fixture: Fixture) => {
+  const handleEditFixture = (fixture: Fixture) => {
+  console.log('✏️ Editing fixture:', fixture);
+  
   setEditingFixture(fixture)
   
   const kickoffDate = new Date(fixture.kickoff_time)
   const localDateTime = new Date(kickoffDate.getTime() - kickoffDate.getTimezoneOffset() * 60000)
     .toISOString()
     .slice(0, 16)
-
-  // Determine if match should be marked as finished
-  const isFinished = fixture.is_finished || 
-    (fixture.home_score !== null && fixture.away_score !== null && fixture.fixture_status === 'completed')
 
   setFixtureFormData({
     gameweek_id: fixture.gameweek_id ? fixture.gameweek_id.toString() : "",
@@ -575,55 +657,52 @@ const handleEditFixture = (fixture: Fixture) => {
     home_team_id: fixture.home_team_id.toString(),
     away_team_id: fixture.away_team_id.toString(),
     kickoff_time: localDateTime,
-    fixture_status: fixture.fixture_status,
+    fixture_status: fixture.fixture_status, // Keep existing status
     home_score: fixture.home_score || undefined,
     away_score: fixture.away_score || undefined,
-    is_finished: isFinished,
+    is_finished: fixture.is_finished, // Keep existing is_finished
     gameweek_type: "Gameweek", 
     gameweek_number: undefined,
     venue: fixture.venue || "",
   })
+  
   setIsFixtureDialogOpen(true)
 }
-    
-
+      
   const handleCreateFixture = () => {
-  setEditingFixture(null)
-  
-  // Get default active sport and season
-  const activeSport = sports[0]
-  const activeSeason = activeSport 
-    ? seasons.find(s => s.is_active && s.sport_id === activeSport.sport_id) 
-    || seasons.find(s => s.sport_id === activeSport.sport_id)
-    || seasons[0]
-    : seasons[0]
-  
-  const naming = activeSport ? getGameweekNaming(activeSport.sport_name) : { label: 'Gameweek', shortForm: 'GW' };
-  
-  setFixtureFormData({
-    gameweek_id: "",
-    season_id: activeSeason ? activeSeason.season_id.toString() : "",
-    sport_id: activeSport ? activeSport.sport_id.toString() : "",
-    home_team_id: "",
-    away_team_id: "",
-    kickoff_time: "",
-    fixture_status: "scheduled",
-    home_score: undefined,
-    away_score: undefined,
-    is_finished: false,
-    gameweek_type: naming.label as GameweekType,
-    gameweek_number: undefined,
-    venue: "" 
-  })
-  setIsFixtureDialogOpen(true)
-}
-   
-
+    setEditingFixture(null)
+    
+    const activeSport = sports[0]
+    const activeSeason = activeSport 
+      ? seasons.find(s => s.is_active && s.sport_id === activeSport.sport_id) 
+      || seasons.find(s => s.sport_id === activeSport.sport_id)
+      || seasons[0]
+      : seasons[0]
+    
+    const naming = activeSport ? getGameweekNaming(activeSport.sport_name) : { label: 'Gameweek', shortForm: 'GW' };
+    
+    setFixtureFormData({
+      gameweek_id: "",
+      season_id: activeSeason ? activeSeason.season_id.toString() : "",
+      sport_id: activeSport ? activeSport.sport_id.toString() : "",
+      home_team_id: "",
+      away_team_id: "",
+      kickoff_time: "",
+      fixture_status: "scheduled",
+      home_score: undefined,
+      away_score: undefined,
+      is_finished: false,
+      gameweek_type: naming.label as GameweekType,
+      gameweek_number: undefined,
+      venue: "" 
+    })
+    setIsFixtureDialogOpen(true)
+  }
+     
   const handleCancelDialog = () => {
     setIsFixtureDialogOpen(false);
     setEditingFixture(null);
     
-    // Reset form to default values
     const activeSport = sports[0];
     const activeSeason = activeSport 
       ? seasons.find(s => s.is_active && s.sport_id === activeSport.sport_id) 
@@ -670,12 +749,10 @@ const handleEditFixture = (fixture: Fixture) => {
   }
 
   const getWinningTeam = (fixture: Fixture) => {
-    // If match is not finished or no scores, return "-"
     if (!fixture.is_finished || fixture.home_score === null || fixture.away_score === null) {
       return "-"
     }
     
-    // Calculate winner based on scores
     if (fixture.home_score > fixture.away_score) {
       return fixture.home_team_name || "Home Team"
     } else if (fixture.home_score < fixture.away_score) {
@@ -701,13 +778,17 @@ const handleEditFixture = (fixture: Fixture) => {
   }
 
   const getStatusBadge = (status: Fixture["fixture_status"]) => {
-    const variants = {
-      scheduled: "secondary",
-      live: "default",
-      completed: "outline",
-      postponed: "destructive",
-    } as const
-    return variants[status] || "secondary"
+    // Capitalize first letter for display
+    const displayStatus = status.charAt(0).toUpperCase() + status.slice(1);
+    
+    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+      Scheduled: "secondary",
+      Live: "default",
+      Completed: "outline",
+      Abandoned: "destructive",
+    }
+    
+    return variants[displayStatus] || "secondary"
   }
 
   const formatDateTime = (dateString: string) => {
@@ -755,35 +836,35 @@ const handleEditFixture = (fixture: Fixture) => {
           />
         </div>
         <div className="w-full sm:w-48">
-        <Select 
-          value={selectedLeague} 
-          onValueChange={(value) => {
-            setSelectedLeague(value)
-          }}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="All Leagues" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Leagues</SelectItem>
-            {leagues
-              .filter(league => league.is_active)
-              .map((league) => (
-                <SelectItem 
-                  key={league.league_id} 
-                  value={league.league_id.toString()}
-                >
-                  {league.league_name}
-                </SelectItem>
-              ))}
-          </SelectContent>
-        </Select>
-      </div>
+          <Select 
+            value={selectedLeague} 
+            onValueChange={(value) => {
+              setSelectedLeague(value)
+            }}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="All Leagues" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Leagues</SelectItem>
+              {leagues
+                .filter(league => league.is_active)
+                .map((league) => (
+                  <SelectItem 
+                    key={league.league_id} 
+                    value={league.league_id.toString()}
+                  >
+                    {league.league_name}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-        
+        {/* Fixed Dialog trigger - removed onClick from Button and moved to DialogTrigger */}
         <Dialog open={isFixtureDialogOpen} onOpenChange={setIsFixtureDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={handleCreateFixture} className="w-full sm:w-auto">
+            <Button className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               Add Fixture
             </Button>
@@ -797,54 +878,54 @@ const handleEditFixture = (fixture: Fixture) => {
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="fixture-sport">Sport *</Label>
-                <Select
-                  value={fixtureFormData.sport_id}
-                  onValueChange={(value) => setFixtureFormData({ ...fixtureFormData, sport_id: value })}
-                  required
-                >
-                  <SelectTrigger id="fixture-sport">
-                    <SelectValue placeholder="Select sport" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sports.map((sport) => (
-                      <SelectItem key={sport.sport_id} value={sport.sport_id.toString()}>
-                        {sport.sport_name} ({sport.sport_code})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="fixture-sport">Sport *</Label>
+                  <Select
+                    value={fixtureFormData.sport_id}
+                    onValueChange={(value) => setFixtureFormData({ ...fixtureFormData, sport_id: value })}
+                    required
+                  >
+                    <SelectTrigger id="fixture-sport">
+                      <SelectValue placeholder="Select sport" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sports.map((sport) => (
+                        <SelectItem key={sport.sport_id} value={sport.sport_id.toString()}>
+                          {sport.sport_name} ({sport.sport_code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div className="space-y-2">
-              <Label htmlFor="fixture-season">Season *</Label>
-              <Select
-                value={fixtureFormData.season_id}
-                onValueChange={(value) => setFixtureFormData({ ...fixtureFormData, season_id: value })}
-                required
-                disabled={!fixtureFormData.sport_id}
-              >
-                <SelectTrigger id="fixture-season">
-                  <SelectValue 
-                    placeholder={fixtureFormData.sport_id ? "Select season" : "Select sport first"}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {filteredSeasons.map((season) => (
-                    <SelectItem key={season.season_id} value={season.season_id.toString()}>
-                      {season.season_name} {/* Show only season_name */}
-                    </SelectItem>
-                  ))}
-                  {filteredSeasons.length === 0 && fixtureFormData.sport_id && (
-                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                      No seasons found for this sport
-                    </div>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="fixture-season">Season *</Label>
+                  <Select
+                    value={fixtureFormData.season_id}
+                    onValueChange={(value) => setFixtureFormData({ ...fixtureFormData, season_id: value })}
+                    required
+                    disabled={!fixtureFormData.sport_id}
+                  >
+                    <SelectTrigger id="fixture-season">
+                      <SelectValue 
+                        placeholder={fixtureFormData.sport_id ? "Select season" : "Select sport first"}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filteredSeasons.map((season) => (
+                        <SelectItem key={season.season_id} value={season.season_id.toString()}>
+                          {season.season_name}
+                        </SelectItem>
+                      ))}
+                      {filteredSeasons.length === 0 && fixtureFormData.sport_id && (
+                        <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                          No seasons found for this sport
+                        </div>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
               {/* Teams in the same row */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -901,86 +982,86 @@ const handleEditFixture = (fixture: Fixture) => {
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="kickoff-time">Kickoff Time *</Label>
-                <Input
-                  id="kickoff-time"
-                  type="datetime-local"
-                  value={fixtureFormData.kickoff_time}
-                  onChange={(e) => setFixtureFormData({ ...fixtureFormData, kickoff_time: e.target.value })}
-                  required
-                />
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="kickoff-time">Kickoff Time *</Label>
+                  <Input
+                    id="kickoff-time"
+                    type="datetime-local"
+                    value={fixtureFormData.kickoff_time}
+                    onChange={(e) => setFixtureFormData({ ...fixtureFormData, kickoff_time: e.target.value })}
+                    required
+                  />
+                </div>
 
-              <div className="space-y-2">
-              <Label htmlFor="venue">Venue</Label>
-              <Input
-                id="venue"
-                placeholder="Enter match venue (e.g., Wembley Stadium, Lord's Cricket Ground)"
-                value={fixtureFormData.venue || ""}
-                onChange={(e) => setFixtureFormData({ ...fixtureFormData, venue: e.target.value })}
-              />
-              <p className="text-xs text-muted-foreground">
-                Enter the stadium or ground where the match will be played
-              </p>
-            </div>
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="venue">Venue</Label>
+                  <Input
+                    id="venue"
+                    placeholder="Enter match venue (e.g., Wembley Stadium, Lord's Cricket Ground)"
+                    value={fixtureFormData.venue || ""}
+                    onChange={(e) => setFixtureFormData({ ...fixtureFormData, venue: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Enter the stadium or ground where the match will be played
+                  </p>
+                </div>
+              </div>
 
               {/* Gameweek type and number in the same row */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                <Label htmlFor="fixture-gameweek">Round *</Label>
-                <Select
-                  value={fixtureFormData.gameweek_id}
-                  onValueChange={(value) => setFixtureFormData({ ...fixtureFormData, gameweek_id: value })}
-                  required
-                  disabled={!fixtureFormData.season_id}
-                >
-                  <SelectTrigger id="fixture-gameweek">
-                    <SelectValue 
-                      placeholder={fixtureFormData.season_id ? "Select round" : "Select season first"}
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getGameweeksForSeason(fixtureFormData.season_id).map((gameweek) => (
-                      <SelectItem key={gameweek.gameweek_id} value={gameweek.gameweek_id.toString()}>
-                        {gameweek.gameweek_name}
-                      </SelectItem>
-                    ))}
-                    {getGameweeksForSeason(fixtureFormData.season_id).length === 0 && (
-                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                        No rounds found for this season. Please create rounds first in the Gameweeks tab.
-                      </div>
-                    )}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Select a round from the gameweeks created for this season
-                </p>
-              </div>
-              
+                  <Label htmlFor="fixture-gameweek">Round *</Label>
+                  <Select
+                    value={fixtureFormData.gameweek_id}
+                    onValueChange={(value) => setFixtureFormData({ ...fixtureFormData, gameweek_id: value })}
+                    required
+                    disabled={!fixtureFormData.season_id}
+                  >
+                    <SelectTrigger id="fixture-gameweek">
+                      <SelectValue 
+                        placeholder={fixtureFormData.season_id ? "Select round" : "Select season first"}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getGameweeksForSeason(fixtureFormData.season_id).map((gameweek) => (
+                        <SelectItem key={gameweek.gameweek_id} value={gameweek.gameweek_id.toString()}>
+                          {gameweek.gameweek_name}
+                        </SelectItem>
+                      ))}
+                      {getGameweeksForSeason(fixtureFormData.season_id).length === 0 && (
+                        <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                          No rounds found for this season. Please create rounds first in the Gameweeks tab.
+                        </div>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Select a round from the gameweeks created for this season
+                  </p>
+                </div>
+                
 
-              {/* Status field */}
-              <div className="space-y-2">
-                <Label htmlFor="fixture-status">Status *</Label>
-                <Select
-                  value={fixtureFormData.fixture_status}
-                  onValueChange={(value: Fixture["fixture_status"]) =>
-                    setFixtureFormData({ ...fixtureFormData, fixture_status: value })
-                  }
-                  required
-                >
-                  <SelectTrigger id="fixture-status">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="scheduled">Scheduled</SelectItem>
-                    <SelectItem value="live">Live</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="postponed">Postponed</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                {/* Status field - fixed to use lowercase values */}
+                <div className="space-y-2">
+                  <Label htmlFor="fixture-status">Status *</Label>
+                  <Select
+                    value={fixtureFormData.fixture_status}
+                    onValueChange={(value: Fixture["fixture_status"]) =>
+                      setFixtureFormData({ ...fixtureFormData, fixture_status: value })
+                    }
+                    required
+                  >
+                    <SelectTrigger id="fixture-status">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="scheduled">Scheduled</SelectItem>
+                      <SelectItem value="live">Live</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="abandoned">Abandoned</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {/* Results Section */}
@@ -1031,11 +1112,11 @@ const handleEditFixture = (fixture: Fixture) => {
                 
                 {/* Winning Team Display */}
                 {fixtureFormData.home_score !== undefined && 
-                 fixtureFormData.away_score !== undefined &&
-                 fixtureFormData.home_score !== null && 
-                 fixtureFormData.away_score !== null && 
-                 fixtureFormData.home_team_id && 
-                 fixtureFormData.away_team_id && (
+                  fixtureFormData.away_score !== undefined &&
+                  fixtureFormData.home_score !== null && 
+                  fixtureFormData.away_score !== null && 
+                  fixtureFormData.home_team_id && 
+                  fixtureFormData.away_team_id && (
                   <div className="mt-4 p-3 bg-muted rounded-lg">
                     <div className="flex items-center justify-between">
                       <div>
@@ -1192,7 +1273,7 @@ const handleEditFixture = (fixture: Fixture) => {
                       </TableCell>
                       <TableCell>
                         <Badge variant={getStatusBadge(fixture.fixture_status)}>
-                          {fixture.fixture_status}
+                          {fixture.fixture_status.charAt(0).toUpperCase() + fixture.fixture_status.slice(1)}
                         </Badge>
                       </TableCell>
                       <TableCell>

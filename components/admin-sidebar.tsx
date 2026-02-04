@@ -37,6 +37,7 @@ const navItems = [
   { href: "/admin/team-configuration", label: "Team Configuration", icon: Sliders },
   { href: "/admin/fixtures", label: "Fixtures", icon: Calendar },
   { href: "/admin/results", label: "Results Board", icon: ClipboardList },
+  { href: "/admin/fantasy-points", label: "Fantasy Points", icon: ClipboardList },
   { href: "/admin/rules", label: "Rules", icon: FileText },
   { href: "/admin/users", label: "Users", icon: Users },
  // { href: "/admin/logs", label: "Activity Logs", icon: FileText },
