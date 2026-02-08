@@ -1,6 +1,6 @@
 "use client"
 
-import { Bell, LogOut, User } from "lucide-react"
+import { Bell, LogOut, User, Menu } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -232,19 +232,36 @@ export function AdminHeader({ admin }: AdminHeaderProps) {
   return (
     <>
       <header className="flex h-16 items-center justify-between border-b bg-card px-4 md:px-6">
-        <div className="flex flex-1 items-center ml-12 md:ml-0">
+        {/* Left section - Menu icon + Title */}
+        <div className="flex items-center flex-1 min-w-0">
+          {/* Sidebar menu toggle button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="mr-2 md:mr-4 h-9 w-9 md:h-10 md:w-10 flex-shrink-0"
+            aria-label="Toggle menu"
+          >
+            
+          </Button>
+          {/* Fixed responsive text handling */}
+          <div className="flex items-center gap-2 overflow-hidden">
+            <h1 className="text-lg font-bold tracking-tight md:text-xl truncate">
+              <span className="hidden md:inline">Fantasy Game Admin Portal</span>
+              <span className="md:hidden">FG Admin</span>
+            </h1>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 md:gap-4">
-          <Button variant="ghost" size="icon" className="relative h-9 w-9 md:h-10 md:w-10">
+        <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
+          <Button variant="ghost" size="icon" className="relative h-9 w-9 md:h-10 md:w-10 flex-shrink-0">
             <Bell className="h-4 w-4 md:h-5 md:w-5" />
             <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-primary" />
           </Button>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <div className="cursor-pointer">
-                <Avatar className="h-8 w-8 md:h-9 md:w-9 border-2 border-transparent hover:border-primary transition-all">
+              <div className="cursor-pointer flex-shrink-0">
+                <Avatar className="h-8 w-8 md:h-9 md:w-9 border-2 border-transparent hover:border-primary transition-all flex-shrink-0">
                   <AvatarImage 
                     src={profile.image || "/placeholder.svg"} 
                     alt={profile.name || "Admin"} 
@@ -263,8 +280,8 @@ export function AdminHeader({ admin }: AdminHeaderProps) {
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">{profile.name || profile.email}</p>
-                  <p className="text-xs leading-none text-muted-foreground">
+                  <p className="text-sm font-medium leading-none truncate">{profile.name || profile.email}</p>
+                  <p className="text-xs leading-none text-muted-foreground truncate">
                     {profile.email}
                   </p>
                 </div>
