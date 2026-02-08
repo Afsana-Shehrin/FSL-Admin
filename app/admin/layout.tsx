@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { AdminSidebar } from "@/components/admin-sidebar"
 import { AdminHeader } from "@/components/admin-header"
 import { getSupabase } from "@/lib/supabase/working-client"
-
+import { cn } from "@/lib/utils" // Add this import
 // Define Admin type - ADD username field
 interface Admin {
   admin_id: string
@@ -135,16 +135,21 @@ export default function AdminLayout({
   console.log('🔍 Final admin object:', currentAdmin)
   
   return (
-    <div className="min-h-screen bg-background">
-      <AdminHeader admin={currentAdmin} />
-      <div className="flex">
+    <div className="h-screen bg-background flex flex-col">
+    <AdminHeader admin={currentAdmin} />
+    <div className="flex flex-1 min-h-0 overflow-hidden">
+      {/* Sidebar - full height container */}
+      <div className="h-full flex-shrink-0">
         <AdminSidebar admin={currentAdmin} />
-        <main className="flex-1 p-4 md:p-6">
-          <div className="mx-auto max-w-7xl">
-            {children}
-          </div>
-        </main>
       </div>
+      
+      {/* Main content area */}
+      <main className="flex-1 overflow-y-auto p-4 md:p-6">
+        <div className="mx-auto max-w-full">
+          {children}
+        </div>
+      </main>
     </div>
+  </div>
   )
 }

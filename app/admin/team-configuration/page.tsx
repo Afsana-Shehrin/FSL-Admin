@@ -156,9 +156,6 @@ export default function TeamConfigurationPage() {
                     <SelectItem key={league.league_id} value={league.league_id.toString()}>
                       <div className="flex items-center gap-2">
                         {league.league_name}
-                        <Badge variant="secondary" className="text-xs">
-                          {league.league_status}
-                        </Badge>
                       </div>
                     </SelectItem>
                   ))}

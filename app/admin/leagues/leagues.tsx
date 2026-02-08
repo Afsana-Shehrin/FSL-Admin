@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Edit, Trash2, Loader2, Image, Plus, Upload, Calendar, PlayCircle, CheckCircle, Trophy } from "lucide-react"
+import { Search, Edit, Trash2, Loader2, Image, Plus, Upload, Calendar, PlayCircle, CheckCircle, Trophy, Filter } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -36,7 +36,7 @@ interface League {
   league_description: string | null;
   league_status: 'Coming soon' | 'Live' | 'Completed';
   winner_team_id: number | null;
-  match_type: 'T20' | 'ODI' | 'Test' | 'T10' | 'Other'; // Added match_type
+  match_type: 'T20' | 'ODI' | 'Test' | 'T10' | 'Other';
 }
 
 interface Sport {
@@ -65,7 +65,7 @@ interface LeagueFormData {
   league_description: string;
   league_status: 'Coming soon' | 'Live' | 'Completed';
   winner_team_id: number | null;
-  match_type: 'T20' | 'ODI' | 'Test' | 'T10' | 'Other'; // Added match_type
+  match_type: 'T20' | 'ODI' | 'Test' | 'T10' | 'Other';
 }
 
 interface LeaguesTabProps {
@@ -171,6 +171,7 @@ export default function LeaguesTab({ selectedSport }: LeaguesTabProps) {
   const [isLeagueDialogOpen, setIsLeagueDialogOpen] = useState(false)
   const [editingLeague, setEditingLeague] = useState<League | null>(null)
   const [supabaseClient, setSupabaseClient] = useState<any>(null)
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false)
 
   const [leagueFormData, setLeagueFormData] = useState<LeagueFormData>({
     league_name: "",
@@ -183,7 +184,7 @@ export default function LeaguesTab({ selectedSport }: LeaguesTabProps) {
     league_description: "",
     league_status: "Coming soon",
     winner_team_id: null,
-    match_type: "T20", // Default match type
+    match_type: "T20",
   })
 
   // Initialize Supabase client on component mount
@@ -269,7 +270,7 @@ export default function LeaguesTab({ selectedSport }: LeaguesTabProps) {
       league_description: league.league_description || "",
       league_status: league.league_status || "Coming soon",
       winner_team_id: league.winner_team_id || null,
-      match_type: league.match_type || "T20", // Set match type from league data
+      match_type: league.match_type || "T20",
     })
     setIsLeagueDialogOpen(true)
   }
@@ -287,7 +288,7 @@ export default function LeaguesTab({ selectedSport }: LeaguesTabProps) {
       league_description: "",
       league_status: "Coming soon",
       winner_team_id: null,
-      match_type: "T20", // Default match type
+      match_type: "T20",
     })
     setIsLeagueDialogOpen(true)
   }
@@ -326,7 +327,7 @@ export default function LeaguesTab({ selectedSport }: LeaguesTabProps) {
             league_description: leagueData.league_description || null,
             league_status: leagueData.league_status || "Coming soon",
             winner_team_id: leagueData.league_status === "Completed" ? leagueData.winner_team_id : null,
-            match_type: leagueData.match_type || "T20", // Add match_type
+            match_type: leagueData.match_type || "T20",
           })
           .eq('league_id', editingLeague.league_id)
           .select()
@@ -356,7 +357,7 @@ export default function LeaguesTab({ selectedSport }: LeaguesTabProps) {
             league_description: leagueData.league_description || null,
             league_status: leagueData.league_status || "Coming soon",
             winner_team_id: leagueData.league_status === "Completed" ? leagueData.winner_team_id : null,
-            match_type: leagueData.match_type || "T20", // Add match_type
+            match_type: leagueData.match_type || "T20",
             created_at: new Date().toISOString()
           }])
           .select()
@@ -512,8 +513,9 @@ export default function LeaguesTab({ selectedSport }: LeaguesTabProps) {
 
   return (
     <>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="relative w-full sm:w-64">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        {/* Desktop Search */}
+        <div className="hidden lg:block relative w-full lg:w-64">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search leagues..."
@@ -522,14 +524,28 @@ export default function LeaguesTab({ selectedSport }: LeaguesTabProps) {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
+        
+        {/* Mobile Search Button */}
+        <div className="lg:hidden flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search leagues..."
+              className="pl-10"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
+
         <Dialog open={isLeagueDialogOpen} onOpenChange={setIsLeagueDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={handleCreateLeague} className="w-full sm:w-auto">
+            <Button onClick={handleCreateLeague} className="w-full lg:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               Add League
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-[95vw] sm:max-w-[500px]">
+          <DialogContent className="max-w-[95vw] sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingLeague ? "Edit League" : "Add New League"}</DialogTitle>
               <DialogDescription>
@@ -593,122 +609,121 @@ export default function LeaguesTab({ selectedSport }: LeaguesTabProps) {
               </div>
 
               {/* Sport Selection */}
-              <div className="grid grid-cols-2 gap-4">
-  <div className="space-y-2">
-    <Label htmlFor="sport">Sport *</Label>
-    <Select
-      value={leagueFormData.sport_id?.toString() || ""}
-      onValueChange={(value) => setLeagueFormData({ ...leagueFormData, sport_id: parseInt(value) })}
-    >
-      <SelectTrigger id="sport">
-        <SelectValue placeholder="Select sport" />
-      </SelectTrigger>
-      <SelectContent>
-        {sports.map((sport) => (
-          <SelectItem key={sport.sport_id} value={sport.sport_id.toString()}>
-            {sport.sport_name}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="sport">Sport *</Label>
+                  <Select
+                    value={leagueFormData.sport_id?.toString() || ""}
+                    onValueChange={(value) => setLeagueFormData({ ...leagueFormData, sport_id: parseInt(value) })}
+                  >
+                    <SelectTrigger id="sport">
+                      <SelectValue placeholder="Select sport" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sports.map((sport) => (
+                        <SelectItem key={sport.sport_id} value={sport.sport_id.toString()}>
+                          {sport.sport_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-  <div className="space-y-2">
-    <Label htmlFor="country-code">Host Country Code</Label>
-    <Select
-      value={leagueFormData.country_code || "none"}
-      onValueChange={(value) => setLeagueFormData({ ...leagueFormData, country_code: value === "none" ? "" : value })}
-    >
-      <SelectTrigger id="country-code">
-        <SelectValue placeholder="Select country" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="none">Select Country</SelectItem>
-        {countriesData.map((country) => (
-          <SelectItem key={country.code} value={country.code}>
-            {country.name} ({country.code})
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  </div>
-</div>
+                <div className="space-y-2">
+                  <Label htmlFor="country-code">Host Country Code</Label>
+                  <Select
+                    value={leagueFormData.country_code || "none"}
+                    onValueChange={(value) => setLeagueFormData({ ...leagueFormData, country_code: value === "none" ? "" : value })}
+                  >
+                    <SelectTrigger id="country-code">
+                      <SelectValue placeholder="Select country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Select Country</SelectItem>
+                      {countriesData.map((country) => (
+                        <SelectItem key={country.code} value={country.code}>
+                          {country.name} ({country.code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
               {/* Number of Clubs */}
-              <div className="grid grid-cols-2 gap-4">
-  <div className="space-y-2">
-    <Label htmlFor="number-of-clubs">Number of Clubs/Teams</Label>
-    <Input
-      id="number-of-clubs"
-      type="number"
-      min="0"
-      value={leagueFormData.number_of_clubs}
-      onChange={(e) => setLeagueFormData({ ...leagueFormData, number_of_clubs: parseInt(e.target.value) || 0 })}
-    />
-  </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="number-of-clubs">Number of Clubs/Teams</Label>
+                  <Input
+                    id="number-of-clubs"
+                    type="number"
+                    min="0"
+                    value={leagueFormData.number_of_clubs}
+                    onChange={(e) => setLeagueFormData({ ...leagueFormData, number_of_clubs: parseInt(e.target.value) || 0 })}
+                  />
+                </div>
 
-  <div className="space-y-2">
-    <Label htmlFor="match-type">Match Type</Label>
-    <Select
-      value={leagueFormData.match_type}
-      onValueChange={(value: 'T20' | 'ODI' | 'Test' | 'T10' | 'Other') => 
-        setLeagueFormData({ ...leagueFormData, match_type: value })
-      }
-    >
-      <SelectTrigger id="match-type">
-        <SelectValue placeholder="Select match type" />
-      </SelectTrigger>
-      <SelectContent>
-        {matchTypeOptions.map((type) => (
-          <SelectItem key={type.value} value={type.value}>
-            {type.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  </div>
-</div>
-
+                <div className="space-y-2">
+                  <Label htmlFor="match-type">Match Type</Label>
+                  <Select
+                    value={leagueFormData.match_type}
+                    onValueChange={(value: 'T20' | 'ODI' | 'Test' | 'T10' | 'Other') => 
+                      setLeagueFormData({ ...leagueFormData, match_type: value })
+                    }
+                  >
+                    <SelectTrigger id="match-type">
+                      <SelectValue placeholder="Select match type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {matchTypeOptions.map((type) => (
+                        <SelectItem key={type.value} value={type.value}>
+                          {type.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
               {/* League Cup */}
-             <div className="grid grid-cols-2 gap-4">
-  <div className="space-y-2">
-    <Label htmlFor="league-cup">Cup Name</Label>
-    <Input
-      id="league-cup"
-      placeholder="e.g., FA Cup, Copa del Rey"
-      value={leagueFormData.league_cup}
-      onChange={(e) => setLeagueFormData({ ...leagueFormData, league_cup: e.target.value })}
-    />
-  </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="league-cup">Cup Name</Label>
+                  <Input
+                    id="league-cup"
+                    placeholder="e.g., FA Cup, Copa del Rey"
+                    value={leagueFormData.league_cup}
+                    onChange={(e) => setLeagueFormData({ ...leagueFormData, league_cup: e.target.value })}
+                  />
+                </div>
 
-  <div className="space-y-2">
-    <Label htmlFor="league-status">League Status</Label>
-    <Select
-      value={leagueFormData.league_status}
-      onValueChange={(value: 'Coming soon' | 'Live' | 'Completed') => 
-        setLeagueFormData({ ...leagueFormData, league_status: value })
-      }
-    >
-      <SelectTrigger id="league-status">
-        <SelectValue placeholder="Select status" />
-      </SelectTrigger>
-      <SelectContent>
-        {leagueStatusOptions.map((status) => {
-          const Icon = status.icon
-          return (
-            <SelectItem key={status.value} value={status.value}>
-              <div className="flex items-center gap-2">
-                <Icon className="h-4 w-4" />
-                <span>{status.label}</span>
+                <div className="space-y-2">
+                  <Label htmlFor="league-status">League Status</Label>
+                  <Select
+                    value={leagueFormData.league_status}
+                    onValueChange={(value: 'Coming soon' | 'Live' | 'Completed') => 
+                      setLeagueFormData({ ...leagueFormData, league_status: value })
+                    }
+                  >
+                    <SelectTrigger id="league-status">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {leagueStatusOptions.map((status) => {
+                        const Icon = status.icon
+                        return (
+                          <SelectItem key={status.value} value={status.value}>
+                            <div className="flex items-center gap-2">
+                              <Icon className="h-4 w-4" />
+                              <span>{status.label}</span>
+                            </div>
+                          </SelectItem>
+                        )
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-            </SelectItem>
-          )
-        })}
-      </SelectContent>
-    </Select>
-  </div>
-</div>
 
               {/* Winner Selection (only shown when status is Completed) */}
               {leagueFormData.league_status === "Completed" && (
@@ -773,135 +788,204 @@ export default function LeaguesTab({ selectedSport }: LeaguesTabProps) {
           <CardTitle>All Leagues ({filteredLeagues.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Logo</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Sport</TableHead>
-                  <TableHead>Host Country</TableHead>
-                  <TableHead>Clubs</TableHead>
-                  <TableHead>Match Type</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Winner</TableHead>
-                  <TableHead>Active</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredLeagues.length === 0 ? (
+          <div className="overflow-x-auto -mx-6 px-6 lg:mx-0 lg:px-0">
+            {/* Desktop Table View */}
+            <div className="hidden lg:block">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
-                      {leagues.length === 0 
-                        ? "No leagues found. Create your first league!" 
-                        : "No leagues match your search criteria."}
-                    </TableCell>
+                    <TableHead>Logo</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Code</TableHead>
+                    <TableHead>Sport</TableHead>
+                    <TableHead>Host Country</TableHead>
+                    <TableHead>Clubs</TableHead>
+                    <TableHead>Match Type</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Winner</TableHead>
+                    <TableHead>Active</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ) : (
-                  filteredLeagues.map((league) => (
-                    <TableRow key={league.league_id}>
-                      <TableCell>
-                        {league.league_logo_url ? (
-                          <img 
-                            src={league.league_logo_url} 
-                            alt={league.league_name}
-                            className="w-10 h-10 object-cover rounded"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none'
-                            }}
-                          />
-                        ) : (
-                          <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center">
-                            <Image className="h-5 w-5 text-gray-400" />
-                          </div>
-                        )}
+                </TableHeader>
+                <TableBody>
+                  {filteredLeagues.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
+                        {leagues.length === 0 
+                          ? "No leagues found. Create your first league!" 
+                          : "No leagues match your search criteria."}
                       </TableCell>
-                      <TableCell className="font-medium">
-                        <div className="flex flex-col">
-                          <span>{league.league_name}</span>
-                          {league.league_description && (
-                            <span className="text-xs text-muted-foreground truncate max-w-[200px]">
-                              {league.league_description}
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="font-mono">
-                          {league.league_code}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{getSportName(league.sport_id)}</TableCell>
-                      <TableCell>
-                        {league.country_code ? (
-                          <Badge variant="secondary">{league.country_code}</Badge>
-                        ) : (
-                          "-"
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {league.number_of_clubs > 0 ? league.number_of_clubs : "-"}
-                      </TableCell>
-                      <TableCell>
-                        <Badge 
-                          variant="outline" 
-                          className={`${getMatchTypeColor(league.match_type || 'T20')} font-medium`}
-                        >
-                          {league.match_type || "T20"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge 
-                          className={`${getStatusColor(league.league_status || 'Coming soon')} text-white`}
-                        >
-                          <div className="flex items-center">
-                            {getStatusIcon(league.league_status || 'Coming soon')}
-                            {league.league_status || 'Coming soon'}
-                          </div>
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {league.league_status === "Completed" ? (
-                          league.winner_team_id ? (
-                            <div className="flex items-center gap-2">
-                              <Trophy className="h-4 w-4 text-yellow-500" />
-                              <span className="font-medium">
-                                {getTeamName(league.winner_team_id) || "Unknown Team"}
-                              </span>
+                    </TableRow>
+                  ) : (
+                    filteredLeagues.map((league) => (
+                      <TableRow key={league.league_id}>
+                        <TableCell>
+                          {league.league_logo_url ? (
+                            <img 
+                              src={league.league_logo_url} 
+                              alt={league.league_name}
+                              className="w-10 h-10 object-cover rounded"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none'
+                              }}
+                            />
+                          ) : (
+                            <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center">
+                              <Image className="h-5 w-5 text-gray-400" />
                             </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          <div className="flex flex-col">
+                            <span>{league.league_name}</span>
+                            {league.league_description && (
+                              <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                                {league.league_description}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="font-mono">
+                            {league.league_code}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{getSportName(league.sport_id)}</TableCell>
+                        <TableCell>
+                          {league.country_code ? (
+                            <Badge variant="secondary">{league.country_code}</Badge>
+                          ) : (
+                            "-"
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {league.number_of_clubs > 0 ? league.number_of_clubs : "-"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant="outline" 
+                            className={`${getMatchTypeColor(league.match_type || 'T20')} font-medium`}
+                          >
+                            {league.match_type || "T20"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            className={`${getStatusColor(league.league_status || 'Coming soon')} text-white`}
+                          >
+                            <div className="flex items-center">
+                              {getStatusIcon(league.league_status || 'Coming soon')}
+                              {league.league_status || 'Coming soon'}
+                            </div>
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {league.league_status === "Completed" ? (
+                            league.winner_team_id ? (
+                              <div className="flex items-center gap-2">
+                                <Trophy className="h-4 w-4 text-yellow-500" />
+                                <span className="font-medium">
+                                  {getTeamName(league.winner_team_id) || "Unknown Team"}
+                                </span>
+                              </div>
+                            ) : (
+                              <Badge variant="outline" className="text-gray-500">
+                                No Winner Set
+                              </Badge>
+                            )
                           ) : (
                             <Badge variant="outline" className="text-gray-500">
-                              No Winner Set
+                              Pending
                             </Badge>
-                          )
-                        ) : (
-                          <Badge variant="outline" className="text-gray-500">
-                            Pending
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-center">
-                          <Switch
-                            checked={league.is_active}
-                            onCheckedChange={() => handleToggleStatus(league)}
-                            aria-label={`Toggle ${league.league_name} active status`}
-                          />
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-center">
+                            <Switch
+                              checked={league.is_active}
+                              onCheckedChange={() => handleToggleStatus(league)}
+                              aria-label={`Toggle ${league.league_name} active status`}
+                            />
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {formatDate(league.created_at)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => handleEditLeague(league)}
+                              title="Edit league"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteLeague(league.league_id)}
+                              title="Delete league"
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="lg:hidden space-y-4">
+              {filteredLeagues.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  {leagues.length === 0 
+                    ? "No leagues found. Create your first league!" 
+                    : "No leagues match your search criteria."}
+                </div>
+              ) : (
+                filteredLeagues.map((league) => (
+                  <Card key={league.league_id} className="overflow-hidden">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          {league.league_logo_url ? (
+                            <img 
+                              src={league.league_logo_url} 
+                              alt={league.league_name}
+                              className="w-12 h-12 object-cover rounded"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none'
+                              }}
+                            />
+                          ) : (
+                            <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center">
+                              <Image className="h-6 w-6 text-gray-400" />
+                            </div>
+                          )}
+                          <div>
+                            <h3 className="font-semibold text-lg">{league.league_name}</h3>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge variant="outline" className="text-xs">
+                                {league.league_code}
+                              </Badge>
+                              <Badge variant="secondary" className="text-xs">
+                                {getSportName(league.sport_id)}
+                              </Badge>
+                            </div>
+                          </div>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        {formatDate(league.created_at)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
+                        <div className="flex gap-1">
                           <Button 
                             variant="ghost" 
                             size="icon" 
                             onClick={() => handleEditLeague(league)}
                             title="Edit league"
+                            className="h-8 w-8"
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -910,16 +994,94 @@ export default function LeaguesTab({ selectedSport }: LeaguesTabProps) {
                             size="icon"
                             onClick={() => handleDeleteLeague(league.league_id)}
                             title="Delete league"
+                            className="h-8 w-8"
                           >
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                      </div>
+                      
+                      {league.league_description && (
+                        <p className="text-sm text-muted-foreground mb-4">{league.league_description}</p>
+                      )}
+                      
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Country</p>
+                          <p className="text-sm font-medium">
+                            {league.country_code ? league.country_code : "-"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Clubs</p>
+                          <p className="text-sm font-medium">
+                            {league.number_of_clubs > 0 ? league.number_of_clubs : "-"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Match Type</p>
+                          <Badge 
+                            variant="outline" 
+                            className={`${getMatchTypeColor(league.match_type || 'T20')} text-xs`}
+                          >
+                            {league.match_type || "T20"}
+                          </Badge>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Status</p>
+                          <Badge 
+                            className={`${getStatusColor(league.league_status || 'Coming soon')} text-white text-xs`}
+                          >
+                            <div className="flex items-center">
+                              {getStatusIcon(league.league_status || 'Coming soon')}
+                              {league.league_status || 'Coming soon'}
+                            </div>
+                          </Badge>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Winner</p>
+                          {league.league_status === "Completed" ? (
+                            league.winner_team_id ? (
+                              <div className="flex items-center gap-1">
+                                <Trophy className="h-3 w-3 text-yellow-500" />
+                                <span className="text-sm font-medium">
+                                  {getTeamName(league.winner_team_id) || "Unknown Team"}
+                                </span>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-500">No Winner</p>
+                            )
+                          ) : (
+                            <p className="text-sm text-gray-500">Pending</p>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Created</p>
+                          <p className="text-sm">{formatDate(league.created_at)}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center justify-between pt-4 border-t">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Active Status</p>
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={league.is_active}
+                              onCheckedChange={() => handleToggleStatus(league)}
+                              aria-label={`Toggle ${league.league_name} active status`}
+                            />
+                            <span className="text-sm">
+                              {league.is_active ? "Active" : "Inactive"}
+                            </span>
+                          </div>
+                        </div>
+                        
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>

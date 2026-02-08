@@ -140,3 +140,23 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Ensure proper sidebar behavior */
+@media (min-width: 768px) {
+  [data-sidebar] {
+    position: static !important;
+    transform: none !important;
+  }
+  
+  /* Push main content on desktop */
+  main {
+    margin-left: 0;
+  }
+}
+
+/* Mobile specific */
+@media (max-width: 767px) {
+  [data-sidebar] {
+    width: 16rem; /* w-64 */
+  }
+}

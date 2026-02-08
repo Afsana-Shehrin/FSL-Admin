@@ -527,15 +527,6 @@ export default function FantasyPointsPage() {
         
         <div className="flex flex-col sm:flex-row gap-2">
           <Button
-            variant="outline"
-            onClick={exportToCSV}
-            className="gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Export CSV
-          </Button>
-          
-          <Button
             onClick={recalculateAllPoints}
             disabled={isCalculating}
             className="gap-2 bg-green-600 hover:bg-green-700"
@@ -610,48 +601,13 @@ export default function FantasyPointsPage() {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <CardTitle>Fantasy Points Management</CardTitle>
             
-            <div className="flex flex-col md:flex-row items-center gap-4 w-full lg:w-auto">
-              {/* Team filter */}
-              <div className="w-full md:w-48">
-                <Select value={selectedTeam} onValueChange={setSelectedTeam}>
-                  <SelectTrigger>
-                    <Filter className="mr-2 h-4 w-4" />
-                    <SelectValue placeholder="Filter by team" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Teams</SelectItem>
-                    {teams.map(team => (
-                      <SelectItem key={team.team_id} value={team.team_id.toString()}>
-                        {team.team_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              {/* Position filter */}
-              <div className="w-full md:w-48">
-                <Select value={selectedPosition} onValueChange={setSelectedPosition}>
-                  <SelectTrigger>
-                    <Filter className="mr-2 h-4 w-4" />
-                    <SelectValue placeholder="Filter by position" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Positions</SelectItem>
-                    <SelectItem value="batsman">Batsman</SelectItem>
-                    <SelectItem value="bowler">Bowler</SelectItem>
-                    <SelectItem value="all-rounder">All-Rounder</SelectItem>
-                    <SelectItem value="wicket-keeper">Wicket-Keeper</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              {/* Search */}
-              <div className="relative w-full md:w-64">
+            {/* Search input */}
+            <div className="w-full lg:w-64 order-first lg:order-none">
+              <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder="Search players or teams..."
-                  className="pl-10"
+                  className="pl-10 w-full"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -659,11 +615,49 @@ export default function FantasyPointsPage() {
             </div>
           </div>
           
+          {/* Filter controls */}
+          <div className="mt-4 flex flex-col sm:flex-row gap-3 w-full">
+            {/* Team filter */}
+            <div className="w-full sm:w-48">
+              <Select value={selectedTeam} onValueChange={setSelectedTeam}>
+                <SelectTrigger className="w-full">
+                  <Filter className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="Filter by team" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Teams</SelectItem>
+                  {teams.map(team => (
+                    <SelectItem key={team.team_id} value={team.team_id.toString()}>
+                      {team.team_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Position filter */}
+            <div className="w-full sm:w-48">
+              <Select value={selectedPosition} onValueChange={setSelectedPosition}>
+                <SelectTrigger className="w-full">
+                  <Filter className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="Filter by position" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Positions</SelectItem>
+                  <SelectItem value="batsman">Batsman</SelectItem>
+                  <SelectItem value="bowler">Bowler</SelectItem>
+                  <SelectItem value="all-rounder">All-Rounder</SelectItem>
+                  <SelectItem value="wicket-keeper">Wicket-Keeper</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          {/* Tabs */}
           <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as any)} className="mt-4">
-            <TabsList>
-              <TabsTrigger value="teams">Team View</TabsTrigger>
-              <TabsTrigger value="players">Player Leaderboard</TabsTrigger>
-              <TabsTrigger value="rules">Scoring Rules</TabsTrigger>
+            <TabsList className="w-full sm:w-auto">
+              <TabsTrigger value="teams" className="flex-1 sm:flex-none">Team View</TabsTrigger>
+              <TabsTrigger value="players" className="flex-1 sm:flex-none">Player Leaderboard</TabsTrigger>
             </TabsList>
           </Tabs>
         </CardHeader>
@@ -688,7 +682,7 @@ export default function FantasyPointsPage() {
                     filteredTeams.map(team => (
                       <Card key={team.team_id} className="overflow-hidden">
                         <CardHeader className="pb-3 bg-gradient-to-r from-slate-50 to-white">
-                          <div className="flex items-center justify-between">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <div className="flex items-center gap-3">
                               <Avatar className="h-10 w-10">
                                 <AvatarImage src={team.team_logo} />
@@ -697,15 +691,15 @@ export default function FantasyPointsPage() {
                                 </AvatarFallback>
                               </Avatar>
                               <div>
-                                <CardTitle>{team.team_name}</CardTitle>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <Badge variant="outline">
+                                <CardTitle className="text-lg sm:text-xl">{team.team_name}</CardTitle>
+                                <div className="flex flex-wrap gap-2 mt-1">
+                                  <Badge variant="outline" className="text-xs">
                                     <Users className="h-3 w-3 mr-1" />
                                     {team.players.length} players
                                   </Badge>
-                                  <Badge className="bg-primary">
+                                  <Badge className="bg-primary text-xs">
                                     <Trophy className="h-3 w-3 mr-1" />
-                                    {team.total_points.toFixed(1)} total points
+                                    {team.total_points.toFixed(1)} points
                                   </Badge>
                                 </div>
                               </div>
@@ -743,11 +737,11 @@ export default function FantasyPointsPage() {
                                       <div className="flex items-center gap-2">
                                         {player.is_captain && <Crown className="h-4 w-4 text-yellow-600" />}
                                         {player.is_vice_captain && <Star className="h-4 w-4 text-gray-400" />}
-                                        {player.player_name}
+                                        <span className="truncate">{player.player_name}</span>
                                       </div>
                                     </TableCell>
                                     <TableCell>
-                                      <Badge variant="outline" className={getPositionColor(player.position)}>
+                                      <Badge variant="outline" className={`text-xs ${getPositionColor(player.position)}`}>
                                         {player.position}
                                       </Badge>
                                     </TableCell>
@@ -813,16 +807,16 @@ export default function FantasyPointsPage() {
                           </TableCell>
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-2">
-                              {player.player_name}
+                              <span className="truncate">{player.player_name}</span>
                               {player.is_captain && <Crown className="h-4 w-4 text-yellow-600" />}
                               {player.is_vice_captain && <Star className="h-4 w-4 text-gray-400" />}
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="secondary">{player.team_name}</Badge>
+                            <Badge variant="secondary" className="text-xs">{player.team_name}</Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline" className={getPositionColor(player.position)}>
+                            <Badge variant="outline" className={`text-xs ${getPositionColor(player.position)}`}>
                               {player.position}
                             </Badge>
                           </TableCell>
@@ -868,7 +862,7 @@ export default function FantasyPointsPage() {
               ) : (
                 // Scoring Rules View
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
                     <h3 className="text-lg font-semibold">Active Scoring Rules ({scoringRules.length})</h3>
                     <Button variant="outline" onClick={fetchScoringRules}>
                       Refresh Rules
@@ -880,11 +874,11 @@ export default function FantasyPointsPage() {
                       <Card key={rule.id}>
                         <CardContent className="pt-6">
                           <div className="flex justify-between items-start mb-2">
-                            <div>
-                              <div className="font-semibold">{rule.action_type.replace('_', ' ').toUpperCase()}</div>
-                              <div className="text-sm text-muted-foreground">{rule.category}</div>
+                            <div className="pr-2">
+                              <div className="font-semibold text-sm sm:text-base">{rule.action_type.replace('_', ' ').toUpperCase()}</div>
+                              <div className="text-xs sm:text-sm text-muted-foreground">{rule.category}</div>
                             </div>
-                            <Badge className="font-bold">
+                            <Badge className="font-bold text-xs sm:text-sm">
                               {rule.points > 0 ? '+' : ''}{rule.points}
                             </Badge>
                           </div>

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
-import { Plus, Edit, Trash2, Search, DollarSign, Image as ImageIcon, X, Filter } from "lucide-react"
+import { Plus, Edit, Trash2, Search, DollarSign, Image as ImageIcon, X, Filter, MoreVertical } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -23,6 +23,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "sonner"
 import { getSupabase } from '@/lib/supabase/working-client'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 // Initialize Supabase client
 const supabase = getSupabase()
@@ -37,7 +43,7 @@ type Player = {
   player_name: string
   first_name: string | null
   last_name: string | null
-  jersey_number: number | null  // Added jersey number
+  jersey_number: number | null
   player_image_url: string | null
   player_image_base64: string | null
   current_price: number
@@ -51,10 +57,10 @@ type Player = {
   created_at: string
   updated_at: string
   player_type?: string
-  player_role?: number | null 
+  player_role?: number | null
   team_name?: string
   league_name?: string
-  league_code?: string 
+  league_code?: string
   league_id?: number
   sport_name?: string
   position_name?: string
@@ -69,18 +75,19 @@ export default function PlayersPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedSport, setSelectedSport] = useState<string>("all")
   const [selectedLeague, setSelectedLeague] = useState<string>("all")
-  const [selectedTeam, setSelectedTeam] = useState<string>("all") // NEW STATE for team filter
+  const [selectedTeam, setSelectedTeam] = useState<string>("all")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  
-  // Image handling states - EXACTLY like teams page
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false)
+
+  // Image handling states
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [selectedImageTab, setSelectedImageTab] = useState<"upload" | "url">("url")
 
-  // Form state - Added jersey_number field
+  // Form state
   const [formData, setFormData] = useState({
     player_name: "",
     first_name: "",
@@ -113,61 +120,61 @@ export default function PlayersPage() {
   const fetchAllData = async () => {
     try {
       setIsLoading(true)
-      
-      // Fetch sports - directly from Supabase
+
+      // Fetch sports
       const { data: sportsData, error: sportsError } = await supabase
         .from('sports')
         .select('*')
         .eq('is_active', true)
         .order('display_order')
-      
+
       if (sportsError) throw sportsError
       setSports(sportsData || [])
-      
-      // Fetch teams - directly from Supabase
+
+      // Fetch teams
       const { data: teamsData, error: teamsError } = await supabase
         .from('teams')
         .select('*')
         .order('team_name')
-      
+
       if (teamsError) throw teamsError
       setTeams(teamsData || [])
-      
-      // Fetch leagues - directly from Supabase
+
+      // Fetch leagues
       const { data: leaguesData, error: leaguesError } = await supabase
         .from('leagues')
         .select('*')
         .order('league_name')
-      
+
       if (leaguesError) throw leaguesError
       setLeagues(leaguesData || [])
-      
-      // Fetch positions - directly from Supabase
+
+      // Fetch positions
       const { data: positionsData, error: positionsError } = await supabase
         .from('player_positions')
         .select('*')
         .eq('is_active', true)
         .order('display_order')
-      
+
       if (positionsError) throw positionsError
       setPositions(positionsData || [])
-      
-      // Fetch players - directly from Supabase
+
+      // Fetch players
       const { data: playersData, error: playersError } = await supabase
         .from('players')
         .select('*')
         .eq('is_active', true)
         .order('player_name')
-      
+
       if (playersError) throw playersError
-      
+
       // Enrich player data
       const enrichedPlayers = (playersData || []).map((player: { team_id: any; primary_position_id: any; sport_id: any }) => {
         const team = teamsData?.find((t: { team_id: any }) => t.team_id === player.team_id)
         const league = leaguesData?.find((l: { league_id: any }) => l.league_id === team?.league_id)
         const position = positionsData?.find((p: { position_id: any }) => p.position_id === player.primary_position_id)
         const sport = sportsData?.find((s: { sport_id: any }) => s.sport_id === player.sport_id)
-        
+
         return {
           ...player,
           team_name: team?.team_name,
@@ -176,12 +183,11 @@ export default function PlayersPage() {
           league_id: team?.league_id,
           sport_name: sport?.sport_name,
           position_name: position?.position_name,
-          
         }
       })
-      
+
       setPlayers(enrichedPlayers)
-      
+
     } catch (error: any) {
       console.error('Error fetching data:', error)
       toast.error('Failed to load data')
@@ -192,24 +198,18 @@ export default function PlayersPage() {
 
   // Filter players based on selected sport, league AND team
   const filteredPlayers = players.filter(player => {
-    // Filter by search query
-    const matchesSearch = searchQuery === "" || 
+    const matchesSearch = searchQuery === "" ||
       player.player_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       player.first_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       player.last_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       player.team_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       player.sport_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       player.league_name?.toLowerCase().includes(searchQuery.toLowerCase())
-    
-    // Filter by sport
+
     const matchesSport = selectedSport === "all" || player.sport_id.toString() === selectedSport
-    
-    // Filter by league
     const matchesLeague = selectedLeague === "all" || player.league_id?.toString() === selectedLeague
-    
-    // NEW: Filter by team
     const matchesTeam = selectedTeam === "all" || player.team_id?.toString() === selectedTeam
-    
+
     return matchesSearch && matchesSport && matchesLeague && matchesTeam
   })
 
@@ -218,27 +218,24 @@ export default function PlayersPage() {
     if (selectedSport === "all") {
       return leagues
     }
-    
     return leagues.filter(league => league.sport_id?.toString() === selectedSport)
   }
 
   // Get filtered teams based on selected sport and league
   const getFilteredTeams = () => {
     let filtered = teams
-    
-    // Filter by sport if selected
+
     if (selectedSport !== "all") {
       filtered = filtered.filter(team => {
         const league = leagues.find(l => l.league_id === team.league_id)
         return league?.sport_id?.toString() === selectedSport
       })
     }
-    
-    // Filter by league if selected
+
     if (selectedLeague !== "all") {
       filtered = filtered.filter(team => team.league_id?.toString() === selectedLeague)
     }
-    
+
     return filtered.sort((a, b) => a.team_name.localeCompare(b.team_name))
   }
 
@@ -253,37 +250,30 @@ export default function PlayersPage() {
     return '🏅'
   }
 
-  // Get player types based on sport
-  const getPlayerTypesBySport = (sportId: string) => {
-    const sport = sports.find(s => s.sport_id.toString() === sportId)
-    if (!sport) return []
-    
-    const sportName = sport.sport_name.toLowerCase()
-    
-    if (sportName.includes('football') || sportName.includes('soccer')) {
-      return [
-        { value: 'Goalkeeper', label: 'Goalkeeper' },
-        { value: 'Defender', label: 'Defender' },
-        { value: 'Midfielder', label: 'Midfielder' },
-        { value: 'Forward', label: 'Forward' }
-      ]
-    } else if (sportName.includes('cricket')) {
-      return [
-        { value: 'Batsman', label: 'Batsman' },
-        { value: 'Bowler', label: 'Bowler' },
-        { value: 'All-rounder', label: 'All-rounder' },
-        { value: 'Wicket-keeper', label: 'Wicket-keeper' }
-      ]
-    } else {
-      return [
-        { value: 'Player', label: 'Player' },
-        { value: 'Captain', label: 'Captain' },
-        { value: 'Vice-Captain', label: 'Vice-Captain' }
-      ]
-    }
+  // Get availability badge variant
+  const getAvailabilityBadge = (status: Player['availability_status']) => {
+    const variants = {
+      available: "default",
+      injured: "destructive",
+      suspended: "destructive",
+      doubtful: "secondary",
+    } as const
+    return variants[status] || "default"
   }
 
-  // === IMAGE HANDLING FUNCTIONS - EXACTLY LIKE TEAMS PAGE ===
+  // Get player role badge - FIXED: Handle undefined case
+  const getPlayerRoleBadge = (role: number | null | undefined) => {
+    if (role === 9) {
+      return <Badge variant="default" className="bg-yellow-500 hover:bg-yellow-600 text-xs">Captain</Badge>
+    } else if (role === 10) {
+      return <Badge variant="outline" className="border-blue-500 text-blue-500 text-xs">Vice Captain</Badge>
+    } else if (role === 11) {
+      return <Badge variant="secondary" className="text-xs">Player</Badge>
+    }
+    return <span className="text-muted-foreground text-xs">-</span>
+  }
+
+  // Image handling functions
   const handleImageFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
@@ -292,26 +282,26 @@ export default function PlayersPage() {
         toast.error("Please select a valid image file (JPEG, PNG, GIF, WebP, or SVG)")
         return
       }
-      
+
       if (file.size > 2 * 1024 * 1024) {
         toast.error("Image size must be less than 2MB")
         return
       }
-      
+
       setImageFile(file)
-      
+
       const reader = new FileReader()
       reader.onload = (e) => {
         const base64String = e.target?.result as string
         setImagePreview(base64String)
-        setFormData(prev => ({ 
-          ...prev, 
+        setFormData(prev => ({
+          ...prev,
           player_image_base64: base64String,
           player_image_url: ""
         }))
       }
       reader.readAsDataURL(file)
-      
+
       setSelectedImageTab("upload")
     }
   }
@@ -339,7 +329,6 @@ export default function PlayersPage() {
 
   // Handle save player
   const handleSave = async () => {
-    // Validation
     if (!formData.player_name.trim()) {
       toast.error('Player name is required')
       return
@@ -390,7 +379,7 @@ export default function PlayersPage() {
         is_active: formData.is_active,
       }
 
-      // Handle image based on selected tab - EXACTLY LIKE TEAMS PAGE
+      // Handle image
       if (selectedImageTab === "upload" && formData.player_image_base64) {
         playerData.player_image_base64 = formData.player_image_base64
         playerData.player_image_url = null
@@ -403,28 +392,23 @@ export default function PlayersPage() {
       }
 
       if (editingPlayer) {
-        // Update existing player
         const { error } = await supabase
           .from('players')
           .update(playerData)
           .eq('player_id', editingPlayer.player_id)
 
         if (error) throw error
-
         toast.success('Player updated successfully')
       } else {
-        // Create new player
         const { error } = await supabase
           .from('players')
           .insert([playerData])
 
         if (error) throw error
-
         toast.success('Player created successfully')
       }
 
       setIsDialogOpen(false)
-      // Reset form and image states
       setImageFile(null)
       setImagePreview(null)
       setSelectedImageTab("url")
@@ -450,24 +434,12 @@ export default function PlayersPage() {
         .eq('player_id', playerId)
 
       if (error) throw error
-
       toast.success('Player deleted successfully')
       fetchAllData()
     } catch (error: any) {
       console.error('Error deleting player:', error)
       toast.error(error.message || 'Failed to delete player')
     }
-  }
-
-  // Get availability badge
-  const getAvailabilityBadge = (status: Player['availability_status']) => {
-    const variants = {
-      available: "default",
-      injured: "destructive",
-      suspended: "destructive",
-      doubtful: "secondary",
-    } as const
-    return variants[status] || "default"
   }
 
   // Handle edit player
@@ -477,7 +449,7 @@ export default function PlayersPage() {
       player_name: player.player_name || "",
       first_name: player.first_name || "",
       last_name: player.last_name || "",
-      jersey_number: player.jersey_number?.toString() || "", // Added jersey number
+      jersey_number: player.jersey_number?.toString() || "",
       sport_id: player.sport_id?.toString() || "",
       team_id: player.team_id?.toString() || "",
       league_id: player.league_id?.toString() || "",
@@ -496,7 +468,7 @@ export default function PlayersPage() {
       player_image_url: player.player_image_url || "",
       player_image_base64: player.player_image_base64 || "",
     })
-    
+
     if (player.player_image_base64) {
       setImagePreview(player.player_image_base64)
       setSelectedImageTab("upload")
@@ -508,7 +480,7 @@ export default function PlayersPage() {
       setImagePreview(null)
       setSelectedImageTab("url")
     }
-    
+
     setIsDialogOpen(true)
   }
 
@@ -517,12 +489,9 @@ export default function PlayersPage() {
     if (player.player_image_base64) {
       return player.player_image_base64
     }
-    
     if (player.player_image_url) {
       return player.player_image_url
     }
-    
-    // Default placeholder based on player name
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(player.player_name)}&background=666&color=fff&size=128`
   }
 
@@ -550,6 +519,7 @@ export default function PlayersPage() {
 
   return (
     <div className="space-y-4 md:space-y-6">
+      {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Players Management</h1>
@@ -563,13 +533,13 @@ export default function PlayersPage() {
                 player_name: "",
                 first_name: "",
                 last_name: "",
-                jersey_number: "", // Added jersey number field
+                jersey_number: "",
                 sport_id: "",
                 team_id: "",
                 league_id: "",
                 primary_position_id: "",
                 player_type: "",
-                player_role:null,
+                player_role: null,
                 secondary_positions: [],
                 current_price: "",
                 total_points: "0",
@@ -607,7 +577,7 @@ export default function PlayersPage() {
               
               <TabsContent value="basic" className="space-y-4">
                 <div className="grid gap-4 py-4 md:grid-cols-2">
-                  {/* Player Image - EXACTLY LIKE TEAMS PAGE */}
+                  {/* Player Image */}
                   <div className="space-y-2 md:col-span-2">
                     <Label>Player Image</Label>
                     <Tabs value={selectedImageTab} onValueChange={(value) => handleImageTabChange(value as "upload" | "url")} className="w-full">
@@ -787,32 +757,33 @@ export default function PlayersPage() {
                       <SelectContent>
                         {sports.map((sport) => (
                           <SelectItem key={sport.sport_id} value={sport.sport_id.toString()}>
-                            {getSportIcon(sport.sport_name)} {sport.sport_name}
+                            {sport.sport_name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
 
-                  {/* Player Role (based on selected sport) */}
+                  {/* Player Role */}
                   <div className="space-y-2">
-                  <Label htmlFor="player-role">Role</Label>
-                  <Select
-                    value={formData.player_role || "none"}  // Use "none" for empty/null
-                    onValueChange={(value) => setFormData({...formData, player_role: value === "none" ? null : value})}
-                  >
-                    <SelectTrigger id="player-role">
-                      <SelectValue placeholder="Select role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No Special Role</SelectItem>
-                      <SelectItem value="9">Captain</SelectItem>
-                      <SelectItem value="10">Vice Captain</SelectItem>
-                      <SelectItem value="11">Player</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                  {/* League Selection (based on selected sport) */}
+                    <Label htmlFor="player-role">Role</Label>
+                    <Select
+                      value={formData.player_role || "none"}
+                      onValueChange={(value) => setFormData({...formData, player_role: value === "none" ? null : value})}
+                    >
+                      <SelectTrigger id="player-role">
+                        <SelectValue placeholder="Select role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No Special Role</SelectItem>
+                        <SelectItem value="9">Captain</SelectItem>
+                        <SelectItem value="10">Vice Captain</SelectItem>
+                        <SelectItem value="11">Player</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* League Selection */}
                   <div className="space-y-2">
                     <Label htmlFor="league">League</Label>
                     <Select
@@ -835,7 +806,7 @@ export default function PlayersPage() {
                     </Select>
                   </div>
 
-                  {/* Team Selection (based on selected league) */}
+                  {/* Team Selection */}
                   <div className="space-y-2">
                     <Label htmlFor="team">Team *</Label>
                     <Select
@@ -858,42 +829,38 @@ export default function PlayersPage() {
                     </Select>
                   </div>
 
-                  {/* Primary Position (based on selected sport) */}
-                <div className="space-y-2">
-                  <Label htmlFor="primary-position">Primary Position *</Label>
-                  <Select
-                    value={formData.primary_position_id || ""}
-                    onValueChange={(value) => setFormData({...formData, primary_position_id: value})}
-                    disabled={!formData.sport_id}
-                  >
-                    <SelectTrigger id="primary-position">
-                      <SelectValue placeholder="Select position" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {positions
-                        .filter(position => {
-                          // First filter by sport
-                          if (position.sport_id?.toString() !== formData.sport_id) {
-                            return false;
-                          }
-                          
-                          // Then filter position IDs based on sport
-                          if (formData.sport_id === "1") { // Football sport_id
-                            return [1, 2, 3, 4].includes(position.position_id); // Football positions
-                          } else if (formData.sport_id === "2") { // Cricket sport_id
-                            return [5, 6, 7, 8].includes(position.position_id); // Cricket positions
-                          }
-                          
-                          return true; // For other sports, show all positions
-                        })
-                        .map((position) => (
-                          <SelectItem key={position.position_id} value={position.position_id.toString()}>
-                            {position.position_name}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                </div>               
+                  {/* Primary Position */}
+                  <div className="space-y-2">
+                    <Label htmlFor="primary-position">Primary Position *</Label>
+                    <Select
+                      value={formData.primary_position_id || ""}
+                      onValueChange={(value) => setFormData({...formData, primary_position_id: value})}
+                      disabled={!formData.sport_id}
+                    >
+                      <SelectTrigger id="primary-position">
+                        <SelectValue placeholder="Select position" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {positions
+                          .filter(position => {
+                            if (position.sport_id?.toString() !== formData.sport_id) {
+                              return false;
+                            }
+                            if (formData.sport_id === "1") {
+                              return [1, 2, 3, 4].includes(position.position_id);
+                            } else if (formData.sport_id === "2") {
+                              return [5, 6, 7, 8].includes(position.position_id);
+                            }
+                            return true;
+                          })
+                          .map((position) => (
+                            <SelectItem key={position.position_id} value={position.position_id.toString()}>
+                              {position.position_name}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </TabsContent>
 
@@ -921,7 +888,7 @@ export default function PlayersPage() {
                       value={formData.total_points}
                       onChange={(e) => setFormData({...formData, total_points: e.target.value})}
                     />
-                  </div>                  
+                  </div>
               
                   {/* Availability Status */}
                   <div className="space-y-2">
@@ -986,13 +953,110 @@ export default function PlayersPage() {
         </Dialog>
       </div>
 
+      {/* Main Content Card */}
       <Card>
         <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <CardTitle>All Players ({filteredPlayers.length})</CardTitle>
-            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-              {/* Search Bar */}
-              <div className="relative w-full sm:w-64">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <CardTitle className="text-lg lg:text-xl">All Players ({filteredPlayers.length})</CardTitle>
+            
+            {/* Mobile Filters Button */}
+            <div className="block lg:hidden">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsMobileFiltersOpen(!isMobileFiltersOpen)}
+                className="w-full"
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                {isMobileFiltersOpen ? "Hide Filters" : "Show Filters"}
+              </Button>
+            </div>
+
+            {/* Desktop Filters - IMPROVED LAYOUT */}
+            <div className="hidden lg:flex flex-col md:flex-row gap-3 w-full md:w-auto">
+              <div className="flex flex-col sm:flex-row gap-3 w-full">
+                {/* Search Bar */}
+                <div className="relative flex-1 min-w-[200px] max-w-[300px]">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Search players..."
+                    className="pl-10"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                
+                {/* League Filter Dropdown */}
+                <div className="flex-1 min-w-[180px] max-w-[220px]">
+                  <Select
+                    value={selectedLeague}
+                    onValueChange={setSelectedLeague}
+                  >
+                    <SelectTrigger className="w-full">
+                      <Filter className="h-4 w-4 mr-2" />
+                      <SelectValue placeholder="All Leagues" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Leagues</SelectItem>
+                      {getFilteredLeagues().map((league) => (
+                        <SelectItem 
+                          key={league.league_id} 
+                          value={league.league_id.toString()}
+                          disabled={selectedSport !== "all" && league.sport_id?.toString() !== selectedSport}
+                        >
+                          {league.league_name}
+                          {selectedSport === "all" && league.sport_name && (
+                            <span className="text-xs text-muted-foreground ml-2">
+                              ({league.sport_name})
+                            </span>
+                          )}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {/* Team Filter Dropdown */}
+                <div className="flex-1 min-w-[180px] max-w-[220px]">
+                  <Select
+                    value={selectedTeam}
+                    onValueChange={setSelectedTeam}
+                  >
+                    <SelectTrigger className="w-full">
+                      <Filter className="h-4 w-4 mr-2" />
+                      <SelectValue placeholder="All Teams" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Teams</SelectItem>
+                      {getFilteredTeams().map((team) => {
+                        const league = leagues.find(l => l.league_id === team.league_id)
+                        return (
+                          <SelectItem 
+                            key={team.team_id} 
+                            value={team.team_id.toString()}
+                          >
+                            <div className="flex flex-col">
+                              <span className="truncate">{team.team_name}</span>
+                              {league && (
+                                <span className="text-xs text-muted-foreground truncate">
+                                  {league.league_name}
+                                </span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        )
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Mobile Filters Dropdown */}
+          {isMobileFiltersOpen && (
+            <div className="mt-4 lg:hidden space-y-4">
+              <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder="Search players..."
@@ -1002,259 +1066,379 @@ export default function PlayersPage() {
                 />
               </div>
               
-              {/* League Filter Dropdown */}
-              <div className="w-full sm:w-64">
-                <Select
-                  value={selectedLeague}
-                  onValueChange={setSelectedLeague}
-                >
-                  <SelectTrigger className="w-full">
-                    <Filter className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Filter by league" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Leagues</SelectItem>
-                    {getFilteredLeagues().map((league) => (
-                      <SelectItem 
-                        key={league.league_id} 
-                        value={league.league_id.toString()}
-                        disabled={selectedSport !== "all" && league.sport_id?.toString() !== selectedSport}
-                      >
-                        {league.league_name}
-                        {selectedSport === "all" && league.sport_name && (
-                          <span className="text-xs text-muted-foreground ml-2">
-                            ({league.sport_name})
-                          </span>
-                        )}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              {/* NEW: Team Classification Dropdown */}
-              <div className="w-full sm:w-64">
-                <Select
-                  value={selectedTeam}
-                  onValueChange={setSelectedTeam}
-                >
-                  <SelectTrigger className="w-full">
-                    <Filter className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Filter by team" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Teams</SelectItem>
-                    {getFilteredTeams().map((team) => {
-                      const league = leagues.find(l => l.league_id === team.league_id)
-                      return (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Select
+                    value={selectedLeague}
+                    onValueChange={setSelectedLeague}
+                  >
+                    <SelectTrigger>
+                      <Filter className="h-4 w-4 mr-2" />
+                      <SelectValue placeholder="All Leagues" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Leagues</SelectItem>
+                      {getFilteredLeagues().map((league) => (
+                        <SelectItem 
+                          key={league.league_id} 
+                          value={league.league_id.toString()}
+                        >
+                          {league.league_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <Select
+                    value={selectedTeam}
+                    onValueChange={setSelectedTeam}
+                  >
+                    <SelectTrigger>
+                      <Filter className="h-4 w-4 mr-2" />
+                      <SelectValue placeholder="All Teams" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Teams</SelectItem>
+                      {getFilteredTeams().map((team) => (
                         <SelectItem 
                           key={team.team_id} 
                           value={team.team_id.toString()}
                         >
-                          <div className="flex flex-col">
-                            <span>{team.team_name}</span>
-                            {league && (
-                              <span className="text-xs text-muted-foreground">
-                                {league.league_name}
-                              </span>
-                            )}
-                          </div>
+                          {team.team_name}
                         </SelectItem>
-                      )
-                    })}
-                  </SelectContent>
-                </Select>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
-          </div>
-          
-          {/* Sport Filter Tabs */}
-          <div className="flex flex-col gap-4 mt-4">
-    <div className="flex gap-2 border-b overflow-x-auto">
-      <button
-        onClick={() => setSelectedSport("all")}
-        className={`px-4 py-2 text-sm font-medium transition-colors relative whitespace-nowrap ${
-          selectedSport === "all" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-        }`}
-      >
-        All Sports
-        {selectedSport === "all" && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
-      </button>
-      {sports.map((sport) => (
-        <button
-          key={sport.sport_id}
-          onClick={() => setSelectedSport(sport.sport_id.toString())}
-          className={`px-4 py-2 text-sm font-medium transition-colors relative whitespace-nowrap ${
-            selectedSport === sport.sport_id.toString() ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          {sport.sport_name}
-          {selectedSport === sport.sport_id.toString() && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
-        </button>
-      ))}
-    </div>
-  </div>
+          )}
 
-          
+          {/* Sport Filter Tabs - FIXED to prevent overflow */}
+          <div className="mt-4">
+            <div className="flex flex-wrap gap-2 max-w-full">
+              <Button
+                variant={selectedSport === "all" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSelectedSport("all")}
+                className="flex-shrink-0"
+              >
+                All Sports
+              </Button>
+              {sports.map((sport) => (
+                <Button
+                  key={sport.sport_id}
+                  variant={selectedSport === sport.sport_id.toString() ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedSport(sport.sport_id.toString())}
+                  className="flex-shrink-0"
+                >
+                  {sport.sport_name}
+                </Button>
+              ))}
+            </div>
+          </div>
         </CardHeader>
         
         <CardContent>
-          {filteredPlayers.length === 0 ? (
-            <div className="text-center py-8">
-              <div className="text-gray-400 mb-4">
-                <Search className="h-12 w-12 mx-auto" />
+          <div className="overflow-x-auto -mx-6 px-6 lg:mx-0 lg:px-0">
+            {filteredPlayers.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="text-gray-400 mb-4">
+                  <Search className="h-12 w-12 mx-auto" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-600 mb-2">
+                  {searchQuery || selectedSport !== "all" || selectedLeague !== "all" || selectedTeam !== "all"
+                    ? 'No players found' 
+                    : 'No players available'}
+                </h3>
+                <p className="text-gray-500">
+                  {searchQuery 
+                    ? 'Try a different search term'
+                    : selectedSport !== "all" || selectedLeague !== "all" || selectedTeam !== "all"
+                      ? 'No players match your filters. Try changing your selection.'
+                      : 'Add your first player using the "Add Player" button'
+                  }
+                </p>
+                {(selectedSport !== "all" || selectedLeague !== "all" || selectedTeam !== "all") && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-4"
+                    onClick={() => {
+                      setSelectedSport("all")
+                      setSelectedLeague("all")
+                      setSelectedTeam("all")
+                      setSearchQuery("")
+                    }}
+                  >
+                    Clear all filters
+                  </Button>
+                )}
               </div>
-              <h3 className="text-lg font-semibold text-gray-600 mb-2">
-                {searchQuery || selectedSport !== "all" || selectedLeague !== "all" || selectedTeam !== "all"
-                  ? 'No players found' 
-                  : 'No players available'}
-              </h3>
-              <p className="text-gray-500">
-                {searchQuery 
-                  ? 'Try a different search term'
-                  : selectedSport !== "all" || selectedLeague !== "all" || selectedTeam !== "all"
-                    ? 'No players match your filters. Try changing your selection.'
-                    : 'Add your first player using the "Add Player" button'
-                }
-              </p>
-              {(selectedSport !== "all" || selectedLeague !== "all" || selectedTeam !== "all") && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-4"
-                  onClick={() => {
-                    setSelectedSport("all")
-                    setSelectedLeague("all")
-                    setSelectedTeam("all")
-                    setSearchQuery("")
-                  }}
-                >
-                  Clear all filters
-                </Button>
-              )}
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Photo</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Jersey</TableHead>
-                  <TableHead>Team</TableHead>
-                  <TableHead>Sport</TableHead>
-                  <TableHead>League</TableHead>
-                  <TableHead>Position</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Points</TableHead>
-                  <TableHead>Availability</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredPlayers.map((player) => (
-                  <TableRow key={player.player_id}>
-                    <TableCell>
-                      <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center overflow-hidden">
-                        <img
-                          src={getPlayerImageUrl(player)}
-                          alt={player.player_name}
-                          className="h-full w-full object-cover"
-                          onError={(e) => {
-                            console.error(`Failed to load image for ${player.player_name}:`, e.currentTarget.src);
-                            e.currentTarget.src = "/placeholder.svg";
-                            e.currentTarget.classList.add("opacity-50");
-                          }}
-                        />
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      <div>
-                        <div>{player.player_name}</div>
-                        {player.first_name && player.last_name && (
-                          <div className="text-sm text-muted-foreground">
-                            {player.first_name} {player.last_name}
+            ) : (
+              <div className="rounded-md border">
+                {/* Desktop Table - ALL COLUMNS RESTORED */}
+                <div className="hidden lg:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-16">Photo</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead className="w-20">Jersey</TableHead>
+                        <TableHead>Team</TableHead>
+                        <TableHead className="w-24">League</TableHead>
+                        <TableHead className="w-24">Sport</TableHead>
+                        <TableHead className="w-28">Position</TableHead>
+                        <TableHead className="w-24">Role</TableHead>
+                        <TableHead className="w-24">Price</TableHead>
+                        <TableHead className="w-20">Points</TableHead>
+                        <TableHead className="w-28">Availability</TableHead>
+                        <TableHead className="w-20">Status</TableHead>
+                        <TableHead className="w-28 text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredPlayers.map((player) => (
+                        <TableRow key={player.player_id}>
+                          <TableCell>
+                            <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+                              <img
+                                src={getPlayerImageUrl(player)}
+                                alt={player.player_name}
+                                className="h-full w-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.src = "/placeholder.svg";
+                                  e.currentTarget.classList.add("opacity-50");
+                                }}
+                              />
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            <div className="flex flex-col">
+                              <span className="font-semibold">{player.player_name}</span>
+                              {player.first_name && player.last_name && (
+                                <span className="text-xs text-muted-foreground">
+                                  {player.first_name} {player.last_name}
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {player.jersey_number ? (
+                              <Badge variant="outline" className="font-mono text-xs px-2">
+                                #{player.jersey_number}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <span className="font-medium">{player.team_name || 'Unknown'}</span>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {player.league_code || player.league_name || 'Unknown'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className="text-xs">
+                             {player.sport_name || 'Unknown'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {player.position_name ? (
+                              <Badge variant="outline" className="text-xs capitalize">
+                                {player.position_name}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {/* FIXED: Type now accepts undefined */}
+                            {getPlayerRoleBadge(player.player_role)}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1 font-semibold">
+                              <DollarSign className="h-3 w-3 text-green-600" />
+                              <span>{player.current_price?.toFixed(1) || '0.0'}M</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {player.total_points || 0}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={getAvailabilityBadge(player.availability_status)} className="text-xs capitalize">
+                              {player.availability_status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {player.is_active ? (
+                              <Badge className="bg-green-100 text-green-800 hover:bg-green-200 border-green-200 text-xs">
+                                Active
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-gray-500 text-xs">
+                                Inactive
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1">
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                className="h-8 w-8 hover:bg-blue-50"
+                                onClick={() => handleEdit(player)}
+                                title="Edit"
+                              >
+                                <Edit className="h-4 w-4 text-blue-600" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 hover:bg-red-50"
+                                onClick={() => handleDelete(player.player_id)}
+                                title="Delete"
+                              >
+                                <Trash2 className="h-4 w-4 text-red-600" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Mobile Cards View - FIXED: Added action buttons */}
+                <div className="lg:hidden space-y-3 p-3">
+                  {filteredPlayers.map((player) => (
+                    <div key={player.player_id} className="border rounded-lg p-4 space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+                            <img
+                              src={getPlayerImageUrl(player)}
+                              alt={player.player_name}
+                              className="h-full w-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.src = "/placeholder.svg";
+                                e.currentTarget.classList.add("opacity-50");
+                              }}
+                            />
                           </div>
-                        )}
+                          <div>
+                            <h3 className="font-semibold">{player.player_name}</h3>
+                            {player.first_name && player.last_name && (
+                              <p className="text-sm text-muted-foreground">
+                                {player.first_name} {player.last_name}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        {/* Mobile Action Buttons */}
+                        <div className="flex gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            className="h-8 w-8 hover:bg-blue-50"
+                            onClick={() => handleEdit(player)}
+                            title="Edit"
+                          >
+                            <Edit className="h-4 w-4 text-blue-600" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 hover:bg-red-50"
+                            onClick={() => handleDelete(player.player_id)}
+                            title="Delete"
+                          >
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                          </Button>
+                        </div>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      {player.jersey_number ? (
-                        <Badge variant="outline" className="font-mono">
-                          #{player.jersey_number}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>{player.team_name || 'Unknown'}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                         {player.sport_name || 'Unknown'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{player.league_code || 'Unknown'}</TableCell>
-                    <TableCell>
-                    {player.position_name ? (
-                      <Badge variant="outline" className="capitalize">
-                        {player.position_name}
-                      </Badge>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">-</span>
-                    )}
-                  </TableCell>
-                    <TableCell>
-                    {player.player_role === 9 ? (
-                      <Badge variant="default" className="bg-yellow-500 hover:bg-yellow-600">Captain</Badge>
-                    ) : player.player_role === 10 ? (
-                      <Badge variant="outline" className="border-blue-500 text-blue-500">Vice Captain</Badge>
-                    ) : player.player_role === 11 ? (
-                      <Badge variant="secondary">Player</Badge>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">-</span>
-                    )}
-                  </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <DollarSign className="h-3 w-3" />
-                        {player.current_price?.toFixed(1) || '0.0'}M
+                      
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Team</p>
+                          <p className="text-sm font-medium">{player.team_name || 'Unknown'}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Jersey</p>
+                          <p className="text-sm font-medium">
+                            {player.jersey_number ? `#${player.jersey_number}` : '-'}
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">League</p>
+                          <Badge variant="outline" className="text-xs">
+                            {player.league_code || player.league_name || 'Unknown'}
+                          </Badge>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Sport</p>
+                          <Badge variant="secondary" className="text-xs">
+                            {player.sport_name || 'Unknown'}
+                          </Badge>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Position</p>
+                          <Badge variant="outline" className="text-xs">
+                            {player.position_name || '-'}
+                          </Badge>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Role</p>
+                          <div className="text-sm">
+                            {/* FIXED: Type now accepts undefined */}
+                            {getPlayerRoleBadge(player.player_role)}
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Price</p>
+                          <div className="flex items-center gap-1 text-sm font-semibold">
+                            <DollarSign className="h-3 w-3 text-green-600" />
+                            {player.current_price?.toFixed(1) || '0.0'}M
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Points</p>
+                          <Badge variant="outline" className="text-xs">
+                            {player.total_points || 0}
+                          </Badge>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Availability</p>
+                          <Badge variant={getAvailabilityBadge(player.availability_status)} className="text-xs capitalize">
+                            {player.availability_status}
+                          </Badge>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Status</p>
+                          {player.is_active ? (
+                            <Badge className="bg-green-100 text-green-800 hover:bg-green-200 border-green-200 text-xs">
+                              Active
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-gray-500 text-xs">
+                              Inactive
+                            </Badge>
+                          )}
+                        </div>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{player.total_points || 0}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getAvailabilityBadge(player.availability_status)}>
-                        {player.availability_status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {player.is_active ? (
-                        <Badge className="bg-green-500 hover:bg-green-600 text-white">Active</Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-gray-500">Inactive</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(player)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(player.player_id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -19,6 +19,7 @@ import {
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
+import { useIsMobile } from "@/hooks/use-mobile" // Add this import
 
 // Define prop types
 interface AdminSidebarProps {
@@ -40,71 +41,82 @@ const navItems = [
   { href: "/admin/team-configuration", label: "Team Rules", icon: Sliders },
   { href: "/admin/scoring-rules", label: "Scoring Rules", icon: FileText },
   { href: "/admin/users", label: "Users", icon: Users },
- // { href: "/admin/logs", label: "Activity Logs", icon: FileText },
   { href: "/admin/settings", label: "Admins", icon: User },
 ]
 
 export function AdminSidebar({ admin }: AdminSidebarProps) {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
+  const isMobile = useIsMobile() // Add this hook
 
+  // Close sidebar when route changes on mobile
   useEffect(() => {
-    setIsOpen(false)
-  }, [pathname])
+    if (isMobile) {
+      setIsOpen(false)
+    }
+  }, [pathname, isMobile])
 
+  // Close sidebar when clicking outside on mobile
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement
-      if (isOpen && !target.closest("[data-sidebar]") && !target.closest("[data-menu-button]")) {
+      if (isOpen && isMobile && !target.closest("[data-sidebar]") && !target.closest("[data-menu-button]")) {
         setIsOpen(false)
       }
     }
 
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [isOpen])
+  }, [isOpen, isMobile])
 
   return (
     <>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="fixed top-3 left-3 z-50 md:hidden"
-        onClick={() => setIsOpen(!isOpen)}
-        data-menu-button
-      >
-        <Menu className="h-6 w-6" />
-      </Button>
+      {/* Mobile menu button - only show on mobile */}
+      {isMobile && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="fixed top-3 left-3 z-50 md:hidden"
+          onClick={() => setIsOpen(!isOpen)}
+          data-menu-button
+        >
+          <Menu className="h-6 w-6" />
+        </Button>
+      )}
 
-      {isOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setIsOpen(false)} />}
+      {/* Mobile overlay - only show on mobile when sidebar is open */}
+      {isMobile && isOpen && (
+        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setIsOpen(false)} />
+      )}
 
+      {/* Sidebar */}
       <div
         data-sidebar
         className={cn(
-          "fixed md:relative inset-y-0 left-0 z-40 flex flex-col bg-sidebar border-r border-sidebar-border transition-transform duration-300 md:translate-x-0",
-          // Fixed positioning for mobile, static for desktop
-          "h-screen md:h-[calc(100vh-2rem)]", // Full height on mobile, slightly less on desktop if needed
-          "md:min-h-[calc(100vh-2rem)]", // Ensure minimum height on desktop
-          isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
+          // Base styles
+          "flex flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300",
+          
+          // Mobile styles
+          "fixed inset-y-0 left-0 z-40 h-screen",
+          isMobile && !isOpen && "-translate-x-full",
+          isMobile && isOpen && "translate-x-0 w-64",
+          
+          // Desktop styles
+          "md:relative md:translate-x-0 md:w-64 md:h-[calc(100vh-4rem)]",
+          "md:min-h-[calc(100vh-4rem)]",
         )}
-        style={{
-          // Force the sidebar to take full viewport height
-          height: '100vh',
-          // Ensure it stays on top of content
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          bottom: 0,
-        }}
       >
         <div className="flex h-16 items-center border-b border-sidebar-border px-6 justify-between">
           <div className="flex items-center">
-            
             <span className="ml-2 text-lg font-semibold text-sidebar-foreground">Admin Portal</span>
           </div>
-          <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsOpen(false)}>
-            <X className="h-5 w-5" />
-          </Button>
+          
+          {/* Close button only on mobile */}
+          {isMobile && (
+            <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsOpen(false)}>
+              <X className="h-5 w-5" />
+            </Button>
+          )}
         </div>
 
         <nav className="flex-1 space-y-1 p-4 overflow-y-auto">
@@ -122,6 +134,7 @@ export function AdminSidebar({ admin }: AdminSidebarProps) {
                     ? "bg-sidebar-accent text-sidebar-accent-foreground"
                     : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
                 )}
+                onClick={() => isMobile && setIsOpen(false)}
               >
                 <Icon className="h-4 w-4" />
                 {item.label}
@@ -129,7 +142,6 @@ export function AdminSidebar({ admin }: AdminSidebarProps) {
             )
           })}
         </nav>
-        
       </div>
     </>
   )

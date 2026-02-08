@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Calendar, Edit, Trash2, Loader2, Plus, Upload, Trophy, User, Image } from "lucide-react"
+import { Calendar, Edit, Trash2, Loader2, Plus, Upload, Trophy, User, Image, Search } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
@@ -112,6 +112,7 @@ export default function SeasonsTab({ selectedSport }: SeasonsTabProps) {
   const [editingSeason, setEditingSeason] = useState<SeasonWithLeague | null>(null)
   const [supabaseClient, setSupabaseClient] = useState<any>(null)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
 
   const [seasonFormData, setSeasonFormData] = useState<SeasonFormData>({
     sport_id: 0,
@@ -223,10 +224,15 @@ export default function SeasonsTab({ selectedSport }: SeasonsTabProps) {
     }
   }
 
-  // Filter seasons based on selected sport
+  // Filter seasons based on selected sport and search query
   const filteredSeasons = seasons.filter((season) => {
-    if (selectedSport === "all") return true
-    return season.sport_id?.toString() === selectedSport
+    const matchesSearch = searchQuery === "" ||
+      season.season_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      season.league_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      season.notes?.toLowerCase().includes(searchQuery.toLowerCase())
+    
+    const matchesSport = selectedSport === "all" || season.sport_id?.toString() === selectedSport
+    return matchesSearch && matchesSport
   })
 
   const handleEditSeason = (season: SeasonWithLeague) => {
@@ -428,33 +434,6 @@ export default function SeasonsTab({ selectedSport }: SeasonsTabProps) {
     }
   }
 
-  const handleUpdateSeasonStatus = async (seasonId: number, newStatus: 'upcoming' | 'active' | 'completed') => {
-    if (!supabaseClient) {
-      alert("Database connection not available")
-      return
-    }
-    
-    try {
-      const { error } = await supabaseClient
-        .from('seasons')
-        .update({
-          status: newStatus,
-        })
-        .eq('season_id', seasonId)
-
-      if (error) throw error
-
-      // Update local state
-      setSeasons(seasons.map(s => 
-        s.season_id === seasonId ? { ...s, status: newStatus } : s
-      ))
-      
-    } catch (error: any) {
-      console.error("Error updating season status:", error)
-      alert(`❌ Failed to update season status: ${error.message}`)
-    }
-  }
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -531,15 +510,39 @@ export default function SeasonsTab({ selectedSport }: SeasonsTabProps) {
 
   return (
     <>
-      <div className="flex justify-end">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        {/* Desktop Search */}
+        <div className="hidden lg:block relative w-full lg:w-64">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search seasons..."
+            className="pl-10"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        
+        {/* Mobile Search */}
+        <div className="lg:hidden">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search seasons..."
+              className="pl-10"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
+
         <Dialog open={isSeasonDialogOpen} onOpenChange={setIsSeasonDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={handleCreateSeason} className="w-full sm:w-auto">
+            <Button onClick={handleCreateSeason} className="w-full lg:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               Add Season
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-[95vw] sm:max-w-[500px]">
+          <DialogContent className="max-w-[95vw] sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingSeason ? "Edit Season" : "Add New Season"}</DialogTitle>
               <DialogDescription>
@@ -620,8 +623,38 @@ export default function SeasonsTab({ selectedSport }: SeasonsTabProps) {
                 />
               </div>
 
-              
-              
+              {/* Year Start/End */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="year-start">Year Start</Label>
+                  <Input
+                    id="year-start"
+                    type="number"
+                    min="2000"
+                    max="2100"
+                    value={seasonFormData.year_start}
+                    onChange={(e) => setSeasonFormData({ 
+                      ...seasonFormData, 
+                      year_start: parseInt(e.target.value) || new Date().getFullYear() 
+                    })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="year-end">Year End</Label>
+                  <Input
+                    id="year-end"
+                    type="number"
+                    min="2000"
+                    max="2100"
+                    value={seasonFormData.year_end}
+                    onChange={(e) => setSeasonFormData({ 
+                      ...seasonFormData, 
+                      year_end: parseInt(e.target.value) || new Date().getFullYear() + 1 
+                    })}
+                  />
+                </div>
+              </div>
+
               {/* Start Date */}
               <div className="space-y-2">
                 <Label htmlFor="start-date">Start Date *</Label>
@@ -769,152 +802,219 @@ export default function SeasonsTab({ selectedSport }: SeasonsTabProps) {
           <CardTitle>All Seasons ({filteredSeasons.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Logo</TableHead>
-                  <TableHead>Season</TableHead>
-                  <TableHead>League</TableHead>
-                  <TableHead>Dates</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Champion</TableHead>
-                  <TableHead>Top Player</TableHead>
-                  <TableHead>Active</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredSeasons.length === 0 ? (
+          <div className="overflow-x-auto -mx-6 px-6 lg:mx-0 lg:px-0">
+            {/* Desktop Table View */}
+            <div className="hidden lg:block">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
-                      {seasons.length === 0 
-                        ? "No seasons found. Create your first season!" 
-                        : "No seasons match your sport filter."}
-                    </TableCell>
+                    <TableHead>Logo</TableHead>
+                    <TableHead>Season</TableHead>
+                    <TableHead>League</TableHead>
+                    <TableHead>Dates</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Champion</TableHead>
+                    <TableHead>Top Player</TableHead>
+                    <TableHead>Active</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ) : (
-                  filteredSeasons.map((season) => (
-                    <TableRow key={season.season_id}>
-                      <TableCell>
-                        {season.season_logo_url ? (
-                          <img 
-                            src={season.season_logo_url} 
-                            alt={season.season_name}
-                            className="w-10 h-10 object-cover rounded"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none'
-                            }}
-                          />
-                        ) : season.league_logo_url ? (
-                          <img 
-                            src={season.league_logo_url} 
-                            alt={season.league_name}
-                            className="w-10 h-10 object-cover rounded"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center">
-                            <Image className="h-5 w-5 text-gray-400" />
-                          </div>
-                        )}
+                </TableHeader>
+                <TableBody>
+                  {filteredSeasons.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                        {seasons.length === 0 
+                          ? "No seasons found. Create your first season!" 
+                          : "No seasons match your sport filter."}
                       </TableCell>
-                      <TableCell className="font-medium">
-                        <div className="flex flex-col">
-                          <span>{season.season_name}</span>
-                          {season.notes && (
-                            <span className="text-xs text-muted-foreground truncate max-w-[200px]">
-                              {season.notes}
-                            </span>
+                    </TableRow>
+                  ) : (
+                    filteredSeasons.map((season) => (
+                      <TableRow key={season.season_id}>
+                        <TableCell>
+                          {season.season_logo_url ? (
+                            <img 
+                              src={season.season_logo_url} 
+                              alt={season.season_name}
+                              className="w-10 h-10 object-cover rounded"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none'
+                              }}
+                            />
+                          ) : season.league_logo_url ? (
+                            <img 
+                              src={season.league_logo_url} 
+                              alt={season.league_name}
+                              className="w-10 h-10 object-cover rounded"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center">
+                              <Image className="h-5 w-5 text-gray-400" />
+                            </div>
                           )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span>{season.league_name || "Unknown League"}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {season.league_code || ""}
-                          </span>
-                        </div>
-                      </TableCell>
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          <div className="flex flex-col">
+                            <span>{season.season_name}</span>
+                            {season.notes && (
+                              <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                                {season.notes}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span>{season.league_name || "Unknown League"}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {season.league_code || ""}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="text-sm">{formatDate(season.start_date)}</span>
+                            <span className="text-xs text-muted-foreground">to</span>
+                            <span className="text-sm">{formatDate(season.end_date)}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={`${getStatusColor(season.status)} text-white`}>
+                            {season.status.charAt(0).toUpperCase() + season.status.slice(1)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {season.status === "completed" ? (
+                            season.champion_team_id ? (
+                              <div className="flex items-center gap-2">
+                                <Trophy className="h-4 w-4 text-yellow-500" />
+                                <span className="font-medium">
+                                  {getTeamName(season.champion_team_id) || "Unknown Team"}
+                                </span>
+                              </div>
+                            ) : (
+                              <Badge variant="outline" className="text-gray-500">
+                                No Champion
+                              </Badge>
+                            )
+                          ) : (
+                            <Badge variant="outline" className="text-gray-500">
+                              Pending
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {season.status === "completed" ? (
+                            season.top_player_id ? (
+                              <div className="flex items-center gap-2">
+                                <User className="h-4 w-4 text-blue-500" />
+                                <span className="font-medium">
+                                  {getPlayerName(season.top_player_id) || "Unknown Player"}
+                                </span>
+                              </div>
+                            ) : (
+                              <Badge variant="outline" className="text-gray-500">
+                                No Top Player
+                              </Badge>
+                            )
+                          ) : (
+                            <Badge variant="outline" className="text-gray-500">
+                              Pending
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={season.is_active ? "default" : "secondary"}>
+                              {season.is_active ? "Active" : "Inactive"}
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleToggleStatus(season)}
+                              className="h-6 px-2 text-xs"
+                            >
+                              {season.is_active ? "Deactivate" : "Activate"}
+                            </Button>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {formatDate(season.created_at)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => handleEditSeason(season)}
+                              title="Edit season"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteSeason(season.season_id)}
+                              title="Delete season"
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
 
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="text-sm">{formatDate(season.start_date)}</span>
-                          <span className="text-xs text-muted-foreground">to</span>
-                          <span className="text-sm">{formatDate(season.end_date)}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={`${getStatusColor(season.status)} text-white`}>
-                          {season.status.charAt(0).toUpperCase() + season.status.slice(1)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {season.status === "completed" ? (
-                          season.champion_team_id ? (
-                            <div className="flex items-center gap-2">
-                              <Trophy className="h-4 w-4 text-yellow-500" />
-                              <span className="font-medium">
-                                {getTeamName(season.champion_team_id) || "Unknown Team"}
-                              </span>
-                            </div>
+            {/* Mobile Card View */}
+            <div className="lg:hidden space-y-4">
+              {filteredSeasons.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  {seasons.length === 0 
+                    ? "No seasons found. Create your first season!" 
+                    : "No seasons match your sport filter."}
+                </div>
+              ) : (
+                filteredSeasons.map((season) => (
+                  <Card key={season.season_id} className="overflow-hidden">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          {season.season_logo_url ? (
+                            <img 
+                              src={season.season_logo_url} 
+                              alt={season.season_name}
+                              className="w-12 h-12 object-cover rounded"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none'
+                              }}
+                            />
+                          ) : season.league_logo_url ? (
+                            <img 
+                              src={season.league_logo_url} 
+                              alt={season.league_name}
+                              className="w-12 h-12 object-cover rounded"
+                            />
                           ) : (
-                            <Badge variant="outline" className="text-gray-500">
-                              No Champion
-                            </Badge>
-                          )
-                        ) : (
-                          <Badge variant="outline" className="text-gray-500">
-                            Pending
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {season.status === "completed" ? (
-                          season.top_player_id ? (
-                            <div className="flex items-center gap-2">
-                              <User className="h-4 w-4 text-blue-500" />
-                              <span className="font-medium">
-                                {getPlayerName(season.top_player_id) || "Unknown Player"}
-                              </span>
+                            <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center">
+                              <Calendar className="h-6 w-6 text-gray-400" />
                             </div>
-                          ) : (
-                            <Badge variant="outline" className="text-gray-500">
-                              No Top Player
-                            </Badge>
-                          )
-                        ) : (
-                          <Badge variant="outline" className="text-gray-500">
-                            Pending
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={season.is_active ? "default" : "secondary"}>
-                            {season.is_active ? "Active" : "Inactive"}
-                          </Badge>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleToggleStatus(season)}
-                            className="h-6 px-2 text-xs"
-                          >
-                            {season.is_active ? "Deactivate" : "Activate"}
-                          </Button>
+                          )}
+                          <div>
+                            <h3 className="font-semibold text-lg">{season.season_name}</h3>
+                            <p className="text-sm text-muted-foreground">{season.league_name}</p>
+                          </div>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        {formatDate(season.created_at)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
+                        <div className="flex gap-1">
                           <Button 
                             variant="ghost" 
                             size="icon" 
                             onClick={() => handleEditSeason(season)}
                             title="Edit season"
+                            className="h-8 w-8"
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -923,16 +1023,104 @@ export default function SeasonsTab({ selectedSport }: SeasonsTabProps) {
                             size="icon"
                             onClick={() => handleDeleteSeason(season.season_id)}
                             title="Delete season"
+                            className="h-8 w-8"
                           >
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                      </div>
+                      
+                      {season.notes && (
+                        <p className="text-sm text-muted-foreground mb-4">{season.notes}</p>
+                      )}
+                      
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Start Date</p>
+                          <p className="text-sm font-medium">{formatDate(season.start_date)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">End Date</p>
+                          <p className="text-sm font-medium">{formatDate(season.end_date)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Status</p>
+                          <Badge className={`${getStatusColor(season.status)} text-white text-xs`}>
+                            {season.status.charAt(0).toUpperCase() + season.status.slice(1)}
+                          </Badge>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Active</p>
+                          {season.is_active ? (
+                            <Badge className="bg-green-100 text-green-800 hover:bg-green-200 border-green-200 text-xs">
+                              Active
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-gray-500 text-xs">
+                              Inactive
+                            </Badge>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Champion</p>
+                          {season.status === "completed" ? (
+                            season.champion_team_id ? (
+                              <div className="flex items-center gap-1">
+                                <Trophy className="h-3 w-3 text-yellow-500" />
+                                <span className="text-sm font-medium">
+                                  {getTeamName(season.champion_team_id) || "Unknown Team"}
+                                </span>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-500">No Champion</p>
+                            )
+                          ) : (
+                            <p className="text-sm text-gray-500">Pending</p>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Top Player</p>
+                          {season.status === "completed" ? (
+                            season.top_player_id ? (
+                              <div className="flex items-center gap-1">
+                                <User className="h-3 w-3 text-blue-500" />
+                                <span className="text-sm font-medium">
+                                  {getPlayerName(season.top_player_id) || "Unknown Player"}
+                                </span>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-500">No Top Player</p>
+                            )
+                          ) : (
+                            <p className="text-sm text-gray-500">Pending</p>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Created</p>
+                          <p className="text-sm">{formatDate(season.created_at)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Years</p>
+                          <p className="text-sm font-medium">{season.year_start} - {season.year_end}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center justify-between pt-4 border-t">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleToggleStatus(season)}
+                          className="text-xs"
+                        >
+                          {season.is_active ? "Deactivate" : "Activate"}
+                        </Button>
+                        
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>

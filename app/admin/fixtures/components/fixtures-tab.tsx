@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2, Search, Trophy } from "lucide-react"
+import { Plus, Edit, Trash2, Search, Trophy, Filter } from "lucide-react"
 import { getSupabase } from '@/lib/supabase/working-client'
 import {
   Dialog,
@@ -135,6 +135,7 @@ export default function FixturesTab() {
   const [loading, setLoading] = useState(true)
   const [filteredSeasons, setFilteredSeasons] = useState<Season[]>([])
   const [activeSportTab, setActiveSportTab] = useState<string>("")
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false)
 
   const [fixtureFormData, setFixtureFormData] = useState({
     gameweek_id: "",
@@ -825,46 +826,66 @@ export default function FixturesTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search fixtures..."
-            className="pl-10"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        <div className="w-full sm:w-48">
-          <Select 
-            value={selectedLeague} 
-            onValueChange={(value) => {
-              setSelectedLeague(value)
-            }}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="All Leagues" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Leagues</SelectItem>
-              {leagues
-                .filter(league => league.is_active)
-                .map((league) => (
-                  <SelectItem 
-                    key={league.league_id} 
-                    value={league.league_id.toString()}
-                  >
-                    {league.league_name}
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        {/* Desktop Search and Filters */}
+        <div className="hidden lg:flex flex-col md:flex-row gap-3 w-full md:w-auto">
+          <div className="flex flex-col sm:flex-row gap-3 w-full">
+            {/* Search Bar */}
+            <div className="relative flex-1 min-w-[200px] max-w-[300px]">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search fixtures..."
+                className="pl-10"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            
+            {/* League Filter Dropdown */}
+            <div className="flex-1 min-w-[180px] max-w-[220px]">
+              <Select 
+                value={selectedLeague} 
+                onValueChange={setSelectedLeague}
+              >
+                <SelectTrigger className="w-full">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="All Leagues" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Leagues</SelectItem>
+                  {leagues
+                    .filter(league => league.is_active)
+                    .map((league) => (
+                      <SelectItem 
+                        key={league.league_id} 
+                        value={league.league_id.toString()}
+                      >
+                        {league.league_name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </div>
 
-        {/* Fixed Dialog trigger - removed onClick from Button and moved to DialogTrigger */}
+        {/* Mobile Filters Button */}
+        <div className="block lg:hidden">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsMobileFiltersOpen(!isMobileFiltersOpen)}
+            className="w-full"
+          >
+            <Filter className="h-4 w-4 mr-2" />
+            {isMobileFiltersOpen ? "Hide Filters" : "Show Filters"}
+          </Button>
+        </div>
+
+        {/* Add Fixture Button */}
         <Dialog open={isFixtureDialogOpen} onOpenChange={setIsFixtureDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="w-full sm:w-auto">
+            <Button onClick={handleCreateFixture} className="w-full lg:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               Add Fixture
             </Button>
@@ -1176,145 +1197,324 @@ export default function FixturesTab() {
         </Dialog>
       </div>
 
+      {/* Mobile Filters Dropdown */}
+      {isMobileFiltersOpen && (
+        <div className="lg:hidden space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search fixtures..."
+              className="pl-10"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          
+          <Select 
+            value={selectedLeague} 
+            onValueChange={setSelectedLeague}
+          >
+            <SelectTrigger>
+              <Filter className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="All Leagues" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Leagues</SelectItem>
+              {leagues
+                .filter(league => league.is_active)
+                .map((league) => (
+                  <SelectItem 
+                    key={league.league_id} 
+                    value={league.league_id.toString()}
+                  >
+                    {league.league_name}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
       <Card>
         <CardHeader>
-          <CardTitle>Fixtures</CardTitle>
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <CardTitle className="text-lg lg:text-xl">Fixtures ({filteredFixtures.length})</CardTitle>
+          </div>
+          
+          {/* Sport Filter Tabs */}
           {sports.length > 0 && (
-            <Tabs value={activeSportTab} onValueChange={setActiveSportTab} className="mt-4">
-              <TabsList className="border-b overflow-x-auto">
-                {sports.map((sport) => (
-                  <TabsTrigger 
-                    key={sport.sport_id} 
-                    value={sport.sport_code}
-                    className="whitespace-nowrap"
-                  >
-                    {sport.sport_name} ({sportCounts[sport.sport_code] || 0})
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </Tabs>
+            <div className="mt-4">
+              <Tabs value={activeSportTab} onValueChange={setActiveSportTab}>
+                <TabsList className="flex flex-wrap border-b overflow-x-auto">
+                  {sports.map((sport) => (
+                    <TabsTrigger 
+                      key={sport.sport_id} 
+                      value={sport.sport_code}
+                      className="whitespace-nowrap"
+                    >
+                      {sport.sport_name} ({sportCounts[sport.sport_code] || 0})
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
+            </div>
           )}
         </CardHeader>
-        <CardContent className="overflow-x-auto">
-          {!activeSportTab ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Select a sport to view fixtures
-            </div>
-          ) : filteredFixtures.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No fixtures found {searchQuery ? `for "${searchQuery}"` : ""}
-              {activeSportTab && ` in ${sports.find(s => s.sport_code === activeSportTab)?.sport_name || activeSportTab}`}
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Season</TableHead>
-                  <TableHead>Round</TableHead>
-                  <TableHead>Kickoff</TableHead>
-                  <TableHead>Venue</TableHead> 
-                  <TableHead>Home Team</TableHead>
-                  <TableHead>Away Team</TableHead>
-                  <TableHead>Score</TableHead>
-                  <TableHead>Winner</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Finished</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredFixtures.map((fixture) => {
-                  const winningTeam = getWinningTeam(fixture);
-                  const shouldShowWinningTeam = winningTeam !== "-";
-                  const gameweekDisplay = getGameweekDisplay(fixture);
-                  
-                  return (
-                    <TableRow key={fixture.fixture_id}>
-                      <TableCell>
-                        <div className="font-medium">
-                          {fixture.season_name || `Season ${fixture.season_id}`}
-                        </div>
-                      </TableCell>
-                      
-                      <TableCell>
-                        {fixture.gameweek_number ? (
-                          <Badge variant="outline">
-                            {gameweekDisplay.type}{fixture.gameweek_number}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      
-                      <TableCell>{formatDateTime(fixture.kickoff_time)}</TableCell>
-                       <TableCell>
-                        {fixture.venue ? (
-                          <div className="max-w-[200px] truncate" title={fixture.venue}>
-                            {fixture.venue}
+        <CardContent>
+          <div className="overflow-x-auto -mx-6 px-6 lg:mx-0 lg:px-0">
+            {!activeSportTab ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Select a sport to view fixtures
+              </div>
+            ) : filteredFixtures.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No fixtures found {searchQuery ? `for "${searchQuery}"` : ""}
+                {activeSportTab && ` in ${sports.find(s => s.sport_code === activeSportTab)?.sport_name || activeSportTab}`}
+              </div>
+            ) : (
+              <div className="rounded-md border">
+                {/* Desktop Table View */}
+                <div className="hidden lg:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Season</TableHead>
+                        <TableHead>Round</TableHead>
+                        <TableHead>Kickoff</TableHead>
+                        <TableHead>Venue</TableHead> 
+                        <TableHead>Home Team</TableHead>
+                        <TableHead>Away Team</TableHead>
+                        <TableHead>Score</TableHead>
+                        <TableHead>Winner</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Finished</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredFixtures.map((fixture) => {
+                        const winningTeam = getWinningTeam(fixture);
+                        const shouldShowWinningTeam = winningTeam !== "-";
+                        const gameweekDisplay = getGameweekDisplay(fixture);
+                        
+                        return (
+                          <TableRow key={fixture.fixture_id}>
+                            <TableCell>
+                              <div className="font-medium">
+                                {fixture.season_name || `Season ${fixture.season_id}`}
+                              </div>
+                            </TableCell>
+                            
+                            <TableCell>
+                              {fixture.gameweek_number ? (
+                                <Badge variant="outline">
+                                  {gameweekDisplay.type}{fixture.gameweek_number}
+                                </Badge>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            
+                            <TableCell>{formatDateTime(fixture.kickoff_time)}</TableCell>
+                            <TableCell>
+                              {fixture.venue ? (
+                                <div className="max-w-[200px] truncate" title={fixture.venue}>
+                                  {fixture.venue}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>{fixture.home_team_name}</TableCell>
+                            <TableCell>{fixture.away_team_name}</TableCell>
+                            <TableCell>
+                              {fixture.home_score !== null && fixture.away_score !== null
+                                ? `${fixture.home_score} - ${fixture.away_score}`
+                                : "-"}
+                            </TableCell>
+                            <TableCell>
+                              {shouldShowWinningTeam && (
+                                <div className="flex items-center gap-1">
+                                  <Trophy className="h-3 w-3" />
+                                  <span className="font-medium">{winningTeam}</span>
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={getStatusBadge(fixture.fixture_status)}>
+                                {fixture.fixture_status.charAt(0).toUpperCase() + fixture.fixture_status.slice(1)}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={fixture.is_finished ? "default" : "outline"}>
+                                {fixture.is_finished ? "Yes" : "No"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-1">
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  className="h-8 w-8 hover:bg-blue-50"
+                                  onClick={() => handleEditFixture(fixture)}
+                                  title="Edit"
+                                >
+                                  <Edit className="h-4 w-4 text-blue-600" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 hover:bg-red-50"
+                                  onClick={async () => {
+                                    if (confirm('Are you sure you want to delete this fixture?')) {
+                                      const { error } = await supabase
+                                        .from('fixtures')
+                                        .delete()
+                                        .eq('fixture_id', fixture.fixture_id)
+                                      
+                                      if (error) {
+                                        console.error('Error deleting fixture:', error)
+                                        alert('Error deleting fixture')
+                                      } else {
+                                        fetchData()
+                                      }
+                                    }
+                                  }}
+                                  title="Delete"
+                                >
+                                  <Trash2 className="h-4 w-4 text-red-600" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Mobile Card View */}
+                <div className="lg:hidden space-y-3 p-3">
+                  {filteredFixtures.map((fixture) => {
+                    const winningTeam = getWinningTeam(fixture);
+                    const shouldShowWinningTeam = winningTeam !== "-";
+                    const gameweekDisplay = getGameweekDisplay(fixture);
+                    
+                    return (
+                      <div key={fixture.fixture_id} className="border rounded-lg p-4 space-y-3">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h3 className="font-semibold text-lg">
+                              {fixture.home_team_name} vs {fixture.away_team_name}
+                            </h3>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge variant="outline" className="text-xs">
+                                {fixture.season_name}
+                              </Badge>
+                              {fixture.gameweek_number && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {gameweekDisplay.type}{fixture.gameweek_number}
+                                </Badge>
+                              )}
+                            </div>
                           </div>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>{fixture.home_team_name}</TableCell>
-                      <TableCell>{fixture.away_team_name}</TableCell>
-                      <TableCell>
-                        {fixture.home_score !== null && fixture.away_score !== null
-                          ? `${fixture.home_score} - ${fixture.away_score}`
-                          : "-"}
-                      </TableCell>
-                      <TableCell>
-                        {shouldShowWinningTeam && (
-                          <div className="flex items-center gap-1">
-                            <Trophy className="h-3 w-3" />
-                            <span className="font-medium">{winningTeam}</span>
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusBadge(fixture.fixture_status)}>
-                          {fixture.fixture_status.charAt(0).toUpperCase() + fixture.fixture_status.slice(1)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={fixture.is_finished ? "default" : "outline"}>
-                          {fixture.is_finished ? "Yes" : "No"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => handleEditFixture(fixture)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={async () => {
-                              if (confirm('Are you sure you want to delete this fixture?')) {
-                                const { error } = await supabase
-                                  .from('fixtures')
-                                  .delete()
-                                  .eq('fixture_id', fixture.fixture_id)
-                                
-                                if (error) {
-                                  console.error('Error deleting fixture:', error)
-                                  alert('Error deleting fixture')
-                                } else {
-                                  fetchData()
+                          {/* Mobile Action Buttons */}
+                          <div className="flex gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              className="h-8 w-8 hover:bg-blue-50"
+                              onClick={() => handleEditFixture(fixture)}
+                              title="Edit"
+                            >
+                              <Edit className="h-4 w-4 text-blue-600" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 hover:bg-red-50"
+                              onClick={async () => {
+                                if (confirm('Are you sure you want to delete this fixture?')) {
+                                  const { error } = await supabase
+                                    .from('fixtures')
+                                    .delete()
+                                    .eq('fixture_id', fixture.fixture_id)
+                                  
+                                  if (error) {
+                                    console.error('Error deleting fixture:', error)
+                                    alert('Error deleting fixture')
+                                  } else {
+                                    fetchData()
+                                  }
                                 }
-                              }
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                              }}
+                              title="Delete"
+                            >
+                              <Trash2 className="h-4 w-4 text-red-600" />
+                            </Button>
+                          </div>
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          )}
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">Kickoff Time</p>
+                            <p className="text-sm font-medium">{formatDateTime(fixture.kickoff_time)}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">Venue</p>
+                            <p className="text-sm">
+                              {fixture.venue ? (
+                                <span className="truncate">{fixture.venue}</span>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">Home Team</p>
+                            <p className="text-sm font-medium">{fixture.home_team_name}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">Away Team</p>
+                            <p className="text-sm font-medium">{fixture.away_team_name}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">Score</p>
+                            <p className="text-sm font-medium">
+                              {fixture.home_score !== null && fixture.away_score !== null
+                                ? `${fixture.home_score} - ${fixture.away_score}`
+                                : "-"}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">Winner</p>
+                            {shouldShowWinningTeam && (
+                              <div className="flex items-center gap-1">
+                                <Trophy className="h-3 w-3" />
+                                <span className="text-sm font-medium">{winningTeam}</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">Status</p>
+                            <Badge variant={getStatusBadge(fixture.fixture_status)} className="text-xs">
+                              {fixture.fixture_status.charAt(0).toUpperCase() + fixture.fixture_status.slice(1)}
+                            </Badge>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">Finished</p>
+                            <Badge variant={fixture.is_finished ? "default" : "outline"} className="text-xs">
+                              {fixture.is_finished ? "Yes" : "No"}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

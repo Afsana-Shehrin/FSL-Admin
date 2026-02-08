@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2, Search, Filter, Image as ImageIcon, X } from "lucide-react"
+import { Plus, Edit, Trash2, Search, Filter, Image as ImageIcon, X, MoreVertical } from "lucide-react"
 import { getSupabase } from "@/lib/supabase/working-client"
 import {
   Dialog,
@@ -22,6 +22,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 // Interface for team data
 interface Team {
@@ -72,6 +78,7 @@ export default function TeamsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingTeam, setEditingTeam] = useState<Team | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false)
   
   // State for image handling
   const [logoFile, setLogoFile] = useState<File | null>(null)
@@ -115,111 +122,111 @@ export default function TeamsPage() {
   }
 
   const fetchTeams = async () => {
-  try {
-    const supabase = getSupabase()
-    
-    const { data: teamsData, error: teamsError } = await supabase
-      .from('teams')
-      .select('*')
-      .order('team_name')
-    
-    if (teamsError) throw teamsError
-    
-    if (teamsData && teamsData.length > 0) {
-      // FIX: Simplify the filter logic to avoid TypeScript issues
-      const sportIds = teamsData
-        .map((team: any) => team.sport_id as number)
-        .filter((id: number | null): id is number => id !== null)
-      
-      const leagueIds = teamsData
-        .map((team: any) => team.league_id as number)
-        .filter((id: number | null): id is number => id !== null)
-      
-      const { data: sportsData, error: sportsError } = await supabase
-        .from('sports')
-        .select('sport_id, sport_name, sport_code')
-        .in('sport_id', sportIds)
-      
-      if (sportsError) throw sportsError
-      
-      const { data: leaguesData, error: leaguesError } = await supabase
-        .from('leagues')
-        .select('league_id, league_name, league_code, sport_id')
-        .in('league_id', leagueIds)
-      
-      if (leaguesError) throw leaguesError
-      
-      // Define types for map values
-      type SportInfo = {
-        name: string;
-        code: string;
-      }
-      
-      type LeagueInfo = {
-        name: string;
-        code: string;
-        sport_id: number;
-      }
-      
-      const sportsMap = new Map<number, SportInfo>(
-        sportsData?.map((sport: any) => [sport.sport_id, {
-          name: sport.sport_name,
-          code: sport.sport_code
-        }]) || []
-      )
-      
-      const leaguesMap = new Map<number, LeagueInfo>(
-        leaguesData?.map((league: any) => [league.league_id, {
-          name: league.league_name,
-          code: league.league_code,
-          sport_id: league.sport_id
-        }]) || []
-      )
-      
-      const enrichedTeams = teamsData.map((team: any) => {
-        const sportInfo = sportsMap.get(team.sport_id) || { 
-          name: `Sport ID: ${team.sport_id}`, 
-          code: `SPORT_${team.sport_id}` 
-        }
-        
-        const leagueInfo = leaguesMap.get(team.league_id) || { 
-          name: `League ID: ${team.league_id}`, 
-          code: `LEAGUE_${team.league_id}`,
-          sport_id: team.sport_id
-        }
-        
-        return {
-          ...team,
-          sport_name: sportInfo.name,
-          sport_code: sportInfo.code,
-          league_name: leagueInfo.name,
-          league_code: leagueInfo.code
-        }
-      })
-      
-      setTeamsList(enrichedTeams as Team[])
-    } else {
-      setTeamsList([])
-    }
-  } catch (error) {
-    console.error("Error fetching teams:", error)
-    toast.error("Failed to fetch teams")
-    
     try {
       const supabase = getSupabase()
-      const { data, error } = await supabase
+      
+      const { data: teamsData, error: teamsError } = await supabase
         .from('teams')
         .select('*')
         .order('team_name')
       
-      if (error) throw error
+      if (teamsError) throw teamsError
       
-      setTeamsList(data || [])
-    } catch (fallbackError) {
-      console.error("Fallback fetch also failed:", fallbackError)
+      if (teamsData && teamsData.length > 0) {
+        // FIX: Simplify the filter logic to avoid TypeScript issues
+        const sportIds = teamsData
+          .map((team: any) => team.sport_id as number)
+          .filter((id: number | null): id is number => id !== null)
+        
+        const leagueIds = teamsData
+          .map((team: any) => team.league_id as number)
+          .filter((id: number | null): id is number => id !== null)
+        
+        const { data: sportsData, error: sportsError } = await supabase
+          .from('sports')
+          .select('sport_id, sport_name, sport_code')
+          .in('sport_id', sportIds)
+        
+        if (sportsError) throw sportsError
+        
+        const { data: leaguesData, error: leaguesError } = await supabase
+          .from('leagues')
+          .select('league_id, league_name, league_code, sport_id')
+          .in('league_id', leagueIds)
+        
+        if (leaguesError) throw leaguesError
+        
+        // Define types for map values
+        type SportInfo = {
+          name: string;
+          code: string;
+        }
+        
+        type LeagueInfo = {
+          name: string;
+          code: string;
+          sport_id: number;
+        }
+        
+        const sportsMap = new Map<number, SportInfo>(
+          sportsData?.map((sport: any) => [sport.sport_id, {
+            name: sport.sport_name,
+            code: sport.sport_code
+          }]) || []
+        )
+        
+        const leaguesMap = new Map<number, LeagueInfo>(
+          leaguesData?.map((league: any) => [league.league_id, {
+            name: league.league_name,
+            code: league.league_code,
+            sport_id: league.sport_id
+          }]) || []
+        )
+        
+        const enrichedTeams = teamsData.map((team: any) => {
+          const sportInfo = sportsMap.get(team.sport_id) || { 
+            name: `Sport ID: ${team.sport_id}`, 
+            code: `SPORT_${team.sport_id}` 
+          }
+          
+          const leagueInfo = leaguesMap.get(team.league_id) || { 
+            name: `League ID: ${team.league_id}`, 
+            code: `LEAGUE_${team.league_id}`,
+            sport_id: team.sport_id
+          }
+          
+          return {
+            ...team,
+            sport_name: sportInfo.name,
+            sport_code: sportInfo.code,
+            league_name: leagueInfo.name,
+            league_code: leagueInfo.code
+          }
+        })
+        
+        setTeamsList(enrichedTeams as Team[])
+      } else {
+        setTeamsList([])
+      }
+    } catch (error) {
+      console.error("Error fetching teams:", error)
+      toast.error("Failed to fetch teams")
+      
+      try {
+        const supabase = getSupabase()
+        const { data, error } = await supabase
+          .from('teams')
+          .select('*')
+          .order('team_name')
+        
+        if (error) throw error
+        
+        setTeamsList(data || [])
+      } catch (fallbackError) {
+        console.error("Fallback fetch also failed:", fallbackError)
+      }
     }
   }
-}
 
   const fetchSports = async () => {
     try {
@@ -923,15 +930,75 @@ export default function TeamsPage() {
       {/* Filters and Search */}
       <Card>
         <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <CardTitle>All Teams ({filteredTeams.length})</CardTitle>
-            <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
-              {/* Leagues dropdown on the left */}
-              <div className="w-full md:w-64">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <CardTitle className="text-lg lg:text-xl">All Teams ({filteredTeams.length})</CardTitle>
+            
+            {/* Mobile Filters Button */}
+            <div className="block lg:hidden">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsMobileFiltersOpen(!isMobileFiltersOpen)}
+                className="w-full"
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                {isMobileFiltersOpen ? "Hide Filters" : "Show Filters"}
+              </Button>
+            </div>
+
+            {/* Desktop Filters - IMPROVED LAYOUT */}
+            <div className="hidden lg:flex flex-col md:flex-row gap-3 w-full md:w-auto">
+              <div className="flex flex-col sm:flex-row gap-3 w-full">
+                {/* Search Bar */}
+                <div className="relative flex-1 min-w-[200px] max-w-[300px]">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Search teams"
+                    className="pl-10"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                
+                {/* League Filter Dropdown */}
+                <div className="flex-1 min-w-[180px] max-w-[220px]">
+                  <Select value={selectedLeagueId} onValueChange={setSelectedLeagueId}>
+                    <SelectTrigger className="w-full">
+                      <Filter className="mr-2 h-4 w-4" />
+                      <SelectValue placeholder="All Leagues" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Leagues</SelectItem>
+                      {filteredLeagues.map((league: League) => (
+                        <SelectItem key={league.league_id} value={league.league_id.toString()}>
+                          {league.league_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Mobile Filters Dropdown */}
+          {isMobileFiltersOpen && (
+            <div className="mt-4 lg:hidden space-y-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search teams"
+                  className="pl-10"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              
+              <div>
                 <Select value={selectedLeagueId} onValueChange={setSelectedLeagueId}>
                   <SelectTrigger>
                     <Filter className="mr-2 h-4 w-4" />
-                    <SelectValue placeholder={selectedSportId === "all" ? "Select league" : "Filter leagues"} />
+                    <SelectValue placeholder="All Leagues" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Leagues</SelectItem>
@@ -943,189 +1010,293 @@ export default function TeamsPage() {
                   </SelectContent>
                 </Select>
               </div>
-              
-              {/* Search bar on the right */}
-              <div className="relative w-full md:w-64">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search teams or players..."
-                  className="pl-10"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
             </div>
-          </div>
-          
-          <div className="flex flex-col gap-4 mt-4">
-            <div className="flex gap-2 border-b overflow-x-auto">
-              <button
+          )}
+
+          {/* Sport Filter Tabs - IMPROVED */}
+          <div className="mt-4">
+            <div className="flex flex-wrap gap-2 max-w-full">
+              <Button
+                variant={selectedSportId === "all" ? "default" : "outline"}
+                size="sm"
                 onClick={() => setSelectedSportId("all")}
-                className={`px-4 py-2 text-sm font-medium transition-colors relative whitespace-nowrap ${
-                  selectedSportId === "all" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-                }`}
+                className="flex-shrink-0"
               >
                 All Sports
-                {selectedSportId === "all" && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
-              </button>
+              </Button>
               {sports.map((sport: Sport) => (
-                <button
+                <Button
                   key={sport.sport_id}
+                  variant={selectedSportId === sport.sport_id.toString() ? "default" : "outline"}
+                  size="sm"
                   onClick={() => setSelectedSportId(sport.sport_id.toString())}
-                  className={`px-4 py-2 text-sm font-medium transition-colors relative whitespace-nowrap ${
-                    selectedSportId === sport.sport_id.toString() ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-                  }`}
+                  className="flex-shrink-0"
                 >
                   {sport.sport_name}
-                  {selectedSportId === sport.sport_id.toString() && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
-                </button>
+                </Button>
               ))}
             </div>
           </div>
         </CardHeader>
         
-        <CardContent className="overflow-x-auto">
-          {isLoading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-2 text-muted-foreground">Loading teams...</p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Logo</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Sport</TableHead>
-                  <TableHead>League</TableHead>
-                  <TableHead>Top Player</TableHead>
-                  <TableHead>Score</TableHead>
-                  <TableHead>Colors</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredTeams.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                      {teamsList.length === 0 ? (
-                        <div className="space-y-4">
-                          <p>No teams found in database.</p>
-                          <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                            <Button onClick={handleCreate} size="sm">
-                              <Plus className="mr-2 h-4 w-4" />
-                              Add Your First Team
-                            </Button>
-                            {sports.length === 0 && (
-                              <Button onClick={addDefaultSport} variant="outline" size="sm" className="bg-green-50 text-green-700 hover:bg-green-100">
-                                <Plus className="mr-2 h-4 w-4" />
-                                Setup Database First
+        <CardContent>
+          <div className="overflow-x-auto -mx-6 px-6 lg:mx-0 lg:px-0">
+            {isLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                <p className="mt-2 text-muted-foreground">Loading teams...</p>
+              </div>
+            ) : filteredTeams.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="text-gray-400 mb-4">
+                  <Search className="h-12 w-12 mx-auto" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-600 mb-2">
+                  {searchQuery || selectedSportId !== "all" || selectedLeagueId !== "all"
+                    ? 'No teams found' 
+                    : 'No teams available'}
+                </h3>
+                <p className="text-gray-500">
+                  {searchQuery 
+                    ? 'Try a different search term'
+                    : selectedSportId !== "all" || selectedLeagueId !== "all"
+                      ? 'No teams match your filters. Try changing your selection.'
+                      : 'Add your first team using the "Add Team" button'
+                  }
+                </p>
+                {(selectedSportId !== "all" || selectedLeagueId !== "all") && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-4"
+                    onClick={() => {
+                      setSelectedSportId("all")
+                      setSelectedLeagueId("all")
+                      setSearchQuery("")
+                    }}
+                  >
+                    Clear all filters
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="rounded-md border">
+                {/* Desktop Table */}
+                <div className="hidden lg:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-16">Logo</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead className="w-20">Code</TableHead>
+                        <TableHead className="w-24">Sport</TableHead>
+                        <TableHead className="w-24">League</TableHead>
+                        <TableHead className="w-32">Top Player</TableHead>
+                        <TableHead className="w-20">Score</TableHead>
+                        <TableHead className="w-20">Colors</TableHead>
+                        <TableHead className="w-20">Status</TableHead>
+                        <TableHead className="w-28 text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredTeams.map((team: Team) => (
+                        <TableRow key={team.team_id}>
+                          <TableCell>
+                            <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center overflow-hidden">
+                              <img 
+                                src={getTeamLogoUrl(team)} 
+                                alt={team.team_name} 
+                                className="h-8 w-8 object-contain"
+                                onError={(e) => {
+                                  e.currentTarget.src = "/placeholder.svg";
+                                  e.currentTarget.classList.add("opacity-50");
+                                }}
+                              />
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            <div>
+                              <div className="font-semibold">{team.team_name}</div>
+                              {team.team_short_name && team.team_short_name !== team.team_name && (
+                                <div className="text-xs text-muted-foreground">{team.team_short_name}</div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">{team.team_code}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className="text-xs">
+                              {team.sport_name || 'N/A'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {team.league_name || 'N/A'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {team.top_player ? (
+                              <Badge variant="secondary" className="text-xs">{team.top_player}</Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="font-mono text-xs">
+                              {team.total_score}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <div
+                                className="h-5 w-5 rounded border"
+                                style={{ backgroundColor: team.primary_color || '#000000' }}
+                                title={team.primary_color || '#000000'}
+                              />
+                              <div
+                                className="h-5 w-5 rounded border"
+                                style={{ backgroundColor: team.secondary_color || '#FFFFFF' }}
+                                title={team.secondary_color || '#FFFFFF'}
+                              />
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {team.is_active ? (
+                              <Badge className="bg-green-100 text-green-800 hover:bg-green-200 border-green-200 text-xs">
+                                Active
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-gray-500 text-xs">
+                                Inactive
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1">
+                              <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-blue-50" onClick={() => handleEdit(team)}>
+                                <Edit className="h-4 w-4 text-blue-600" />
                               </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 hover:bg-red-50"
+                                onClick={() => handleDelete(team.team_id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-600" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Mobile Cards View */}
+                <div className="lg:hidden space-y-3 p-3">
+                  {filteredTeams.map((team: Team) => (
+                    <div key={team.team_id} className="border rounded-lg p-4 space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="h-12 w-12 rounded-md bg-muted flex items-center justify-center overflow-hidden">
+                            <img 
+                              src={getTeamLogoUrl(team)} 
+                              alt={team.team_name} 
+                              className="h-10 w-10 object-contain"
+                              onError={(e) => {
+                                e.currentTarget.src = "/placeholder.svg";
+                                e.currentTarget.classList.add("opacity-50");
+                              }}
+                            />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold">{team.team_name}</h3>
+                            {team.team_short_name && team.team_short_name !== team.team_name && (
+                              <p className="text-sm text-muted-foreground">{team.team_short_name}</p>
                             )}
                           </div>
                         </div>
-                      ) : (
-                        "No teams match your search filters."
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredTeams.map((team: Team) => (
-                    <TableRow key={team.team_id}>
-                      <TableCell>
-                        <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center overflow-hidden">
-                          <img 
-                            src={getTeamLogoUrl(team)} 
-                            alt={team.team_name} 
-                            className="h-8 w-8 object-contain"
-                            onError={(e) => {
-                              console.error(`Failed to load logo for ${team.team_name}:`, e.currentTarget.src);
-                              e.currentTarget.src = "/placeholder.svg";
-                              e.currentTarget.classList.add("opacity-50");
-                            }}
-                          />
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        <div>
-                          <div>{team.team_name}</div>
-                          {team.team_short_name && team.team_short_name !== team.team_name && (
-                            <div className="text-sm text-muted-foreground">{team.team_short_name}</div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{team.team_code}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{team.sport_name || 'N/A'}</div>
-                          {team.sport_id && (
-                            <div className="text-xs text-muted-foreground">ID: {team.sport_id}</div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{team.league_name || 'N/A'}</div>
-                          {team.league_id && (
-                            <div className="text-xs text-muted-foreground">ID: {team.league_id}</div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {team.top_player ? (
-                          <Badge variant="secondary">{team.top_player}</Badge>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="font-mono">
-                          {team.total_score}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <div
-                            className="h-6 w-6 rounded border"
-                            style={{ backgroundColor: team.primary_color || '#000000' }}
-                            title={team.primary_color || '#000000'}
-                          />
-                          <div
-                            className="h-6 w-6 rounded border"
-                            style={{ backgroundColor: team.secondary_color || '#FFFFFF' }}
-                            title={team.secondary_color || '#FFFFFF'}
-                          />
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={team.is_active ? "default" : "secondary"}>
-                          {team.is_active ? "Active" : "Inactive"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => handleEdit(team)}>
-                            <Edit className="h-4 w-4" />
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-blue-50" onClick={() => handleEdit(team)}>
+                            <Edit className="h-4 w-4 text-blue-600" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="h-8 w-8 hover:bg-red-50"
                             onClick={() => handleDelete(team.team_id)}
                           >
-                            <Trash2 className="h-4 w-4 text-destructive" />
+                            <Trash2 className="h-4 w-4 text-red-600" />
                           </Button>
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          )}
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Code</p>
+                          <Badge variant="outline" className="text-xs">{team.team_code}</Badge>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Sport</p>
+                          <Badge variant="secondary" className="text-xs">
+                            {team.sport_name || 'N/A'}
+                          </Badge>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">League</p>
+                          <Badge variant="outline" className="text-xs">
+                            {team.league_name || 'N/A'}
+                          </Badge>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Top Player</p>
+                          {team.top_player ? (
+                            <Badge variant="secondary" className="text-xs">{team.top_player}</Badge>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">-</span>
+                          )}
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Score</p>
+                          <Badge variant="outline" className="text-xs">
+                            {team.total_score}
+                          </Badge>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Colors</p>
+                          <div className="flex gap-2">
+                            <div
+                              className="h-5 w-5 rounded border"
+                              style={{ backgroundColor: team.primary_color || '#000000' }}
+                              title={team.primary_color || '#000000'}
+                            />
+                            <div
+                              className="h-5 w-5 rounded border"
+                              style={{ backgroundColor: team.secondary_color || '#FFFFFF' }}
+                              title={team.secondary_color || '#FFFFFF'}
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Status</p>
+                          {team.is_active ? (
+                            <Badge className="bg-green-100 text-green-800 hover:bg-green-200 border-green-200 text-xs">
+                              Active
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-gray-500 text-xs">
+                              Inactive
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

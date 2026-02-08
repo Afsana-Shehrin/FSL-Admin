@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Search, Mail, User, Shield, ShieldOff, Calendar, Phone, CheckCircle, XCircle, Loader2 } from "lucide-react"
+import { Search, Mail, User, Shield, ShieldOff, Calendar, Phone, CheckCircle, XCircle, Loader2, Filter, MoreVertical } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -47,6 +47,7 @@ export default function UsersPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isActionLoading, setIsActionLoading] = useState(false)
   const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false)
 
   // Check if Supabase is properly configured
   useEffect(() => {
@@ -256,23 +257,75 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 md:space-y-6">
+      {/* Header Section */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Users Management</h1>
-          <p className="text-muted-foreground">Manage user accounts, permissions, and restrictions</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Users Management</h1>
+          <p className="text-sm md:text-base text-muted-foreground">Manage user accounts, permissions, and restrictions</p>
         </div>
         <div className="text-sm text-muted-foreground">
           Total Users: {usersList.length}
         </div>
       </div>
 
+      {/* Main Content Card */}
       <Card>
         <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <CardTitle>All Users</CardTitle>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative w-full sm:w-64">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <CardTitle className="text-lg lg:text-xl">All Users ({filteredUsers.length})</CardTitle>
+            
+            {/* Mobile Filters Button */}
+            <div className="block lg:hidden">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsMobileFiltersOpen(!isMobileFiltersOpen)}
+                className="w-full"
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                {isMobileFiltersOpen ? "Hide Filters" : "Show Filters"}
+              </Button>
+            </div>
+
+            {/* Desktop Filters */}
+            <div className="hidden lg:flex flex-col md:flex-row gap-3 w-full md:w-auto">
+              <div className="flex flex-col sm:flex-row gap-3 w-full">
+                {/* Search Bar */}
+                <div className="relative flex-1 min-w-[200px] max-w-[300px]">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name, email, or phone..."
+                    className="pl-10"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                
+                {/* Status Filter Dropdown */}
+                <div className="flex-1 min-w-[180px] max-w-[200px]">
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-full">
+                      <Filter className="h-4 w-4 mr-2" />
+                      <SelectValue placeholder="Filter status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Users</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Blocked</SelectItem>
+                      <SelectItem value="verified">Verified</SelectItem>
+                      <SelectItem value="unverified">Unverified</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Mobile Filters Dropdown */}
+          {isMobileFiltersOpen && (
+            <div className="mt-4 lg:hidden space-y-4">
+              <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder="Search by name, email, or phone..."
@@ -281,21 +334,26 @@ export default function UsersPage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-40">
-                  <SelectValue placeholder="Filter status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Users</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Blocked</SelectItem>
-                  <SelectItem value="verified">Verified</SelectItem>
-                  <SelectItem value="unverified">Unverified</SelectItem>
-                </SelectContent>
-              </Select>
+              
+              <div>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-full">
+                    <Filter className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Filter status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Users</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Blocked</SelectItem>
+                    <SelectItem value="verified">Verified</SelectItem>
+                    <SelectItem value="unverified">Unverified</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          </div>
+          )}
         </CardHeader>
+        
         <CardContent>
           {isLoading ? (
             <div className="text-center py-12">
@@ -307,128 +365,247 @@ export default function UsersPage() {
               <div className="mb-4 text-sm text-muted-foreground">
                 Showing {filteredUsers.length} of {usersList.length} users
               </div>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12">Profile</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Phone</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Verified</TableHead>
-                      <TableHead>Joined</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+              
+              <div className="overflow-x-auto -mx-6 px-6 lg:mx-0 lg:px-0">
+                <div className="rounded-md border min-w-full">
+                  {/* Desktop Table View */}
+                  <div className="hidden lg:block">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-12">Profile</TableHead>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Phone</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Verified</TableHead>
+                          <TableHead>Joined</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredUsers.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={8} className="text-center py-12">
+                              <div className="flex flex-col items-center gap-2">
+                                <User className="h-12 w-12 text-muted-foreground/50" />
+                                <p className="text-muted-foreground">No users found</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {searchQuery ? 'Try a different search term' : 'No users match the selected filters'}
+                                </p>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          filteredUsers.map((user) => (
+                            <TableRow key={user.user_id}>
+                              <TableCell>
+                                <Avatar className="h-8 w-8">
+                                  <AvatarImage src={user.profile_image_url || ""} alt={user.full_name || user.email} />
+                                  <AvatarFallback className="text-xs">
+                                    {getInitials(user.full_name, user.email)}
+                                  </AvatarFallback>
+                                </Avatar>
+                              </TableCell>
+                              <TableCell className="font-medium">
+                                <div className="flex flex-col">
+                                  <span className="truncate max-w-[180px]">{user.full_name || "No name"}</span>
+                                  {user.username && (
+                                    <span className="text-sm text-muted-foreground truncate max-w-[180px]">@{user.username}</span>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2 max-w-[200px]">
+                                  <Mail className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                  <span className="truncate">{user.email}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {user.phone ? (
+                                  <div className="flex items-center gap-2">
+                                    <Phone className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                    <span className="truncate max-w-[120px]">{user.phone}</span>
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground text-sm">No phone</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  {getStatusIcon(user.is_active)}
+                                  <Badge variant={getStatusBadge(user.is_active)} className="text-xs">
+                                    {getStatusText(user.is_active)}
+                                  </Badge>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  {getVerificationIcon(user.is_verified)}
+                                  <span className="text-sm">
+                                    {user.is_verified ? "Verified" : "Unverified"}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                  <span className="text-sm">{formatDate(user.created_at)}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex justify-end gap-2">
+                                  {user.is_active ? (
+                                    <Button 
+                                      variant="destructive" 
+                                      size="sm"
+                                      onClick={() => handleBlockUser(user)}
+                                      disabled={isActionLoading}
+                                    >
+                                      <ShieldOff className="h-3 w-3 mr-1" />
+                                      Block
+                                    </Button>
+                                  ) : (
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm"
+                                      onClick={() => toggleUserStatus(user.user_id, true)}
+                                      disabled={isActionLoading}
+                                    >
+                                      <Shield className="h-3 w-3 mr-1" />
+                                      Unblock
+                                    </Button>
+                                  )}
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => handleDeleteUser(user)}
+                                    disabled={isActionLoading}
+                                  >
+                                    Delete
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Mobile Cards View */}
+                  <div className="lg:hidden space-y-3 p-3">
                     {filteredUsers.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={8} className="text-center py-12">
-                          <div className="flex flex-col items-center gap-2">
-                            <User className="h-12 w-12 text-muted-foreground/50" />
-                            <p className="text-muted-foreground">No users found</p>
-                            <p className="text-sm text-muted-foreground">
-                              {searchQuery ? 'Try a different search term' : 'No users match the selected filters'}
-                            </p>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                      <div className="text-center py-8">
+                        <div className="flex flex-col items-center gap-2">
+                          <User className="h-12 w-12 text-muted-foreground/50" />
+                          <p className="text-muted-foreground">No users found</p>
+                          <p className="text-sm text-muted-foreground">
+                            {searchQuery ? 'Try a different search term' : 'No users match the selected filters'}
+                          </p>
+                        </div>
+                      </div>
                     ) : (
                       filteredUsers.map((user) => (
-                        <TableRow key={user.user_id}>
-                          <TableCell>
-                            <Avatar className="h-8 w-8">
-                              <AvatarImage src={user.profile_image_url || ""} alt={user.full_name || user.email} />
-                              <AvatarFallback className="text-xs">
-                                {getInitials(user.full_name, user.email)}
-                              </AvatarFallback>
-                            </Avatar>
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            <div className="flex flex-col">
-                              <span>{user.full_name || "No name"}</span>
-                              {user.username && (
-                                <span className="text-sm text-muted-foreground">@{user.username}</span>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Mail className="h-3 w-3 text-muted-foreground" />
-                              <span className="truncate">{user.email}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {user.phone ? (
-                              <div className="flex items-center gap-2">
-                                <Phone className="h-3 w-3 text-muted-foreground" />
-                                {user.phone}
+                        <div key={user.user_id} className="border rounded-lg p-4 space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-10 w-10">
+                                <AvatarImage src={user.profile_image_url || ""} alt={user.full_name || user.email} />
+                                <AvatarFallback className="text-xs">
+                                  {getInitials(user.full_name, user.email)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <h3 className="font-semibold">{user.full_name || "No name"}</h3>
+                                {user.username && (
+                                  <p className="text-sm text-muted-foreground">@{user.username}</p>
+                                )}
+                                <p className="text-sm text-muted-foreground truncate max-w-[200px]">{user.email}</p>
                               </div>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <p className="text-xs text-muted-foreground">Phone</p>
+                              <p className="text-sm font-medium">
+                                {user.phone ? (
+                                  <div className="flex items-center gap-1">
+                                    <Phone className="h-3 w-3 text-muted-foreground" />
+                                    {user.phone}
+                                  </div>
+                                ) : (
+                                  "No phone"
+                                )}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs text-muted-foreground">Status</p>
+                              <div className="flex items-center gap-2">
+                                {getStatusIcon(user.is_active)}
+                                <Badge variant={getStatusBadge(user.is_active)} className="text-xs">
+                                  {getStatusText(user.is_active)}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs text-muted-foreground">Verified</p>
+                              <div className="flex items-center gap-2">
+                                {getVerificationIcon(user.is_verified)}
+                                <span className="text-sm">
+                                  {user.is_verified ? "Verified" : "Unverified"}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs text-muted-foreground">Joined</p>
+                              <div className="flex items-center gap-2">
+                                <Calendar className="h-3 w-3 text-muted-foreground" />
+                                <span className="text-sm">{formatDate(user.created_at)}</span>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="flex gap-2 pt-2">
+                            {user.is_active ? (
+                              <Button 
+                                variant="destructive" 
+                                size="sm"
+                                onClick={() => handleBlockUser(user)}
+                                disabled={isActionLoading}
+                                className="flex-1"
+                              >
+                                <ShieldOff className="h-3 w-3 mr-1" />
+                                Block
+                              </Button>
                             ) : (
-                              <span className="text-muted-foreground text-sm">No phone</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              {getStatusIcon(user.is_active)}
-                              <Badge variant={getStatusBadge(user.is_active)}>
-                                {getStatusText(user.is_active)}
-                              </Badge>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              {getVerificationIcon(user.is_verified)}
-                              <span className="text-sm">
-                                {user.is_verified ? "Verified" : "Unverified"}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-3 w-3 text-muted-foreground" />
-                              {formatDate(user.created_at)}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              {user.is_active ? (
-                                <Button 
-                                  variant="destructive" 
-                                  size="sm"
-                                  onClick={() => handleBlockUser(user)}
-                                  disabled={isActionLoading}
-                                >
-                                  <ShieldOff className="h-3 w-3 mr-1" />
-                                  Block
-                                </Button>
-                              ) : (
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={() => toggleUserStatus(user.user_id, true)}
-                                  disabled={isActionLoading}
-                                >
-                                  <Shield className="h-3 w-3 mr-1" />
-                                  Unblock
-                                </Button>
-                              )}
                               <Button 
                                 variant="outline" 
                                 size="sm"
-                                onClick={() => handleDeleteUser(user)}
+                                onClick={() => toggleUserStatus(user.user_id, true)}
                                 disabled={isActionLoading}
+                                className="flex-1"
                               >
-                                Delete
+                                <Shield className="h-3 w-3 mr-1" />
+                                Unblock
                               </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
+                            )}
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleDeleteUser(user)}
+                              disabled={isActionLoading}
+                              className="flex-1"
+                            >
+                              Delete
+                            </Button>
+                          </div>
+                        </div>
                       ))
                     )}
-                  </TableBody>
-                </Table>
+                  </div>
+                </div>
               </div>
             </>
           )}
@@ -437,7 +614,7 @@ export default function UsersPage() {
 
       {/* Block User Dialog */}
       <AlertDialog open={isBlockDialogOpen} onOpenChange={setIsBlockDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="w-[95vw] max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle>
               Block User: {selectedUser?.full_name || selectedUser?.email}
@@ -458,19 +635,20 @@ export default function UsersPage() {
               rows={3}
             />
           </div>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0">
             <AlertDialogCancel 
               onClick={() => {
                 setBlockReason("")
                 setIsBlockDialogOpen(false)
               }}
               disabled={isActionLoading}
+              className="w-full sm:w-auto"
             >
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction 
               onClick={confirmBlockUser}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full sm:w-auto"
               disabled={isActionLoading}
             >
               {isActionLoading ? (
@@ -488,7 +666,7 @@ export default function UsersPage() {
 
       {/* Delete User Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="w-[95vw] max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete User: {selectedUser?.full_name || selectedUser?.email}</AlertDialogTitle>
             <AlertDialogDescription>
@@ -496,13 +674,13 @@ export default function UsersPage() {
               and remove all associated data from our servers.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isActionLoading}>
+          <AlertDialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0">
+            <AlertDialogCancel disabled={isActionLoading} className="w-full sm:w-auto">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction 
               onClick={confirmDeleteUser}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full sm:w-auto"
               disabled={isActionLoading}
             >
               {isActionLoading ? (
