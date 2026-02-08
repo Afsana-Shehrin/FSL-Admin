@@ -354,7 +354,6 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <RecentActivity />
         <QuickActions
           onLock={() => setLockDialogOpen(true)}
           onSetCurrent={() => setLockDialogOpen(true)} 
